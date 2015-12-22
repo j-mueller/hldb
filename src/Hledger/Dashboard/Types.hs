@@ -44,12 +44,12 @@ makeLenses ''IncomeStatement
 
 postings :: Lens' IncomeStatement Postings
 postings = lens t f where
-  t is = is^.unIS.(to ask)
+  t is = is ^. unIS . to ask
   f p = undefined
 
 diffTime :: Lens' IncomeStatement NominalDiffTime
 diffTime = lens t f where
-  t is = is^.unIS.(to extract)
+  t is = is ^. unIS . to extract
   f = undefined
 
 instance AdditiveGroup IncomeStatement where
