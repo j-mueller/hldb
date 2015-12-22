@@ -21,7 +21,7 @@ library
     comonad,
     containers,
     deepseq,
-    hledger-lib,
+    -- hledger-lib,
     lens,
     text,
     time,
