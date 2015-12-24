@@ -14,19 +14,19 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Lib, Hledger.Dashboard.Types
+  exposed-modules:
+    Lib,
+    Hledger.Dashboard.Types
   build-depends:
     base >= 4.7 && < 5,
     contravariant,
     comonad,
     containers,
     deepseq,
-    -- hledger-lib,
     lens,
     text,
     time,
-    vector-space,
-    vector-space-points
+    vector-space
   default-language:    Haskell2010
 
 executable hldb-exe
