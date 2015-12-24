@@ -1,6 +1,6 @@
 module Main where
 
-import Lib
+import Hledger.Dashboard.Types
 
 main :: IO ()
-main = someFunc
+main = putStrLn "It compiles so it must be correct"
