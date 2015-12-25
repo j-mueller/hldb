@@ -30,3 +30,20 @@ newtype Journal = Journal {
 }
 
 makeLenses ''Journal
+
+-- | Get the first day for which data is available in the journal
+startingDate :: Journal -> Maybe Day
+startingDate = undefined
+
+-- | Get the first day of the interval containing the given day
+-- | If the interval is `Day` then `begin` and `end` both evaluate to `id`
+begin :: ReportingInterval -> Day -> Day
+begin i = case i of
+  Day -> id
+  _ -> undefined
+
+-- | Get the last day of the interval containing the given day
+end :: ReportingInterval -> Day -> Day
+end i = case i of
+  Day -> id
+  _ -> undefined
