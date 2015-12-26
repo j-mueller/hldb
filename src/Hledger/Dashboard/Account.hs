@@ -1,24 +1,41 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE FlexibleInstances #-}
 module Hledger.Dashboard.Account where
 
 import           Control.Lens
 import           Data.AdditiveGroup
 import           Data.Foldable
 import           Data.Monoid
-import qualified Data.Map.Strict as M
 import           Hledger.Dashboard.Currency (Currency)
-import           Numeric.Interval
 
-newtype Accounts = Accounts { _values :: M.Map String Currency }
-  deriving (Eq, Ord)
+data AccountDetails = AccountDetails {
+  _accountName :: Maybe String,
+  _accountBalance :: Currency -- balance excluding sub-accounts
+}
 
-makeLenses ''Accounts
+makeLenses ''AccountDetails
 
-instance Monoid Accounts where
-  mempty = Accounts M.empty
-  mappend l r = Accounts $ M.unionWith (^+^) (l^.values) (r^.values)
+data Tree a = Tree {
+  _node :: a,
+  _children :: [Tree a]
+}
+  deriving (Functor, Foldable, Traversable)
 
-instance AdditiveGroup Accounts where
+makeLenses ''Tree
+
+-- | Merge two `Account`s
+merge :: Tree AccountDetails -> Tree AccountDetails -> Tree AccountDetails
+merge = undefined
+
+instance Monoid (Tree AccountDetails) where
+  mempty  = Tree (AccountDetails mempty mempty) []
+  mappend = merge
+
+instance AdditiveGroup (Tree AccountDetails) where
   zeroV = mempty
   l ^+^ r = l <> r
-  negateV = Accounts . fmap negateV . view values
+  negateV = fmap (over accountBalance negateV)
+
+type Account = Tree AccountDetails
