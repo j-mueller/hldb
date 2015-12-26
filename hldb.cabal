@@ -15,8 +15,9 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:
-    Hledger.Dashboard.Accounts,
+    Hledger.Dashboard.Account,
     Hledger.Dashboard.Currency,
+    Hledger.Dashboard.Journal,
     Hledger.Dashboard.Types
   build-depends:
     base >= 4.7 && < 5,

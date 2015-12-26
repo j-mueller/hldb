@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
-module Hledger.Dashboard.Accounts where
+module Hledger.Dashboard.Journal where
 
 import           Control.Lens hiding ((...), singular)
 import           Data.AdditiveGroup
@@ -14,22 +14,9 @@ import           Data.Time.Calendar (
   fromGregorian,
   toGregorian)
 import           Data.Time.Calendar.WeekDate (fromWeekDate, toWeekDate)
+import           Hledger.Dashboard.Account
 import           Hledger.Dashboard.Currency (Currency)
 import           Numeric.Interval
-
-newtype Accounts = Accounts { _values :: M.Map String Currency }
-  deriving (Eq, Ord)
-
-makeLenses ''Accounts
-
-instance Monoid Accounts where
-  mempty = Accounts M.empty
-  mappend l r = Accounts $ M.unionWith (^+^) (l^.values) (r^.values)
-
-instance AdditiveGroup Accounts where
-  zeroV = mempty
-  l ^+^ r = l <> r
-  negateV = Accounts . fmap negateV . view values
 
 data ReportingInterval = Day | Week | Month | Year
   deriving (Eq, Ord, Show, Enum, Bounded)
