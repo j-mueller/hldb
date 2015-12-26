@@ -7,6 +7,7 @@ import           Data.Foldable
 import           Data.Monoid
 import qualified Data.Map.Strict as M
 import           Data.Time.Calendar
+import           Data.Time.Calendar.WeekDate
 import           Numeric.Interval
 
 newtype Accounts = Accounts { _values :: M.Map String Rational }
@@ -23,7 +24,7 @@ instance AdditiveGroup Accounts where
   l ^+^ r = l <> r
   negateV = Accounts . fmap negate . view values
 
-data ReportingInterval = Day | Week | Month | Quarter | Year
+data ReportingInterval = Day | Week | Month | Year
   deriving (Eq, Ord, Show, Enum, Bounded)
 
 enumerate :: (Enum a, Bounded a) => [a]
@@ -40,16 +41,27 @@ makeLenses ''Journal
 -- | Get the first day of the interval containing the given day
 -- | If the interval is `Day` then `begin` and `end` both evaluate to `id`
 begin :: ReportingInterval -> Day -> Day
-begin i = case i of
-  Day -> id
-  Week -> undefined
+begin i d = case i of
+  Day -> d
+  Week -> fromWeekDate y w 1 where
+    (y, w, _) = toWeekDate d
+  Month -> fromGregorian y m 1 where
+    (y, m, _) = toGregorian d
+  Year -> fromGregorian y 1 1 where
+    (y, _, _) = toGregorian d
 
 -- | Get the last day of the interval containing the given day
 -- | If the interval is `Day` then `begin` and `end` both evaluate to `id`
 end :: ReportingInterval -> Day -> Day
-end i = case i of
-  Day -> id
-  _ -> undefined
+end i d = case i of
+  Day -> d
+  Week -> pred $ fromWeekDate y w 1 where
+    (y, w, _) = toWeekDate d'
+    d' = addDays 7 d
+  Month -> pred $ fromGregorian y m 1 where
+    (y, m, _) = toGregorian $ addGregorianMonthsClip 1 d
+  Year -> pred $ fromGregorian y 1 1 where
+    (y, _, _) = toGregorian $ addGregorianYearsClip 1 d
 
 -- | Get all intervals starting at a given date
 startingAt :: Day -> [ReportingInterval]
