@@ -12,7 +12,7 @@ You may need to follow stack's instructions to install GHCJS
 
 # License
 
-GPL
+BSD3
 
 # Contributions
 
