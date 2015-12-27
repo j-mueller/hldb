@@ -26,6 +26,8 @@ data Tree a = Tree {
 makeLenses ''Tree
 
 -- | Merge two `Account`s
+-- | assuming they both start at the same root of the tree (so we only have
+-- | to compare the subtrees)
 merge :: Tree AccountDetails -> Tree AccountDetails -> Tree AccountDetails
 merge = undefined
 
