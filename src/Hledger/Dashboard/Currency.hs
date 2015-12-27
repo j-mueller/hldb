@@ -46,7 +46,7 @@ instance Monoid Currency where
 --
 -- The following properties hold:
 --
--- prop> \(r :: Currency) -> r ^+^ (negateV r) == zeroV
+-- prop> \(r :: Currency) -> r ^-^ r == zeroV
 -- prop> \((l, r) :: (Currency, Currency)) -> l ^+^ r == r ^+^ l
 instance AdditiveGroup Currency where
   zeroV = mempty
@@ -63,7 +63,7 @@ instance Show Currency where
 -- >>> currency 1 "EUR"
 -- 1.0 EUR
 currency :: Rational -> String -> Currency
-currency r s = Currency $ M.fromList [(s, r)]
+currency r s = Currency $ nonZero $ M.fromList [(s, r)]
 
 -- | Add an amount to a `Currency`
 --
@@ -71,5 +71,7 @@ currency r s = Currency $ M.fromList [(s, r)]
 -- 2.0 EUR
 -- >>> add 1 "GBP" $ currency 1 "EUR"
 -- 1.0 EUR, 1.0 GBP
+-- >>> add (-1) "GBP" $ currency 1 "GBP"
+-- <BLANKLINE>
 add :: Rational -> String -> Currency -> Currency
-add r s = Currency . M.insertWith (+) s r . view values
+add r s = Currency . nonZero . M.insertWith (+) s r . view values
