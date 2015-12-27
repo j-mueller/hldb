@@ -5,7 +5,7 @@ hledger-dashboard, a GHCJS webapp with reports for your hledger journals. Also a
 # How to build
 Install stack, then run
 ```
-stack build
+stack build --stack-yaml stack-ghcjs.yaml
 ```
 
 You may need to follow stack's instructions to install GHCJS
