@@ -36,14 +36,12 @@ nonZero = M.filter (not . (==) 0)
 -- >>> :set -XScopedTypeVariables
 
 -- | `Currency` is a `Monoid` where `<>` is `plus` and `mempty` is `empty`
---
 instance Monoid Currency where
   mempty = empty
   mappend = plus
 
--- | `Currency` is an additive group where `zeroV` and `^+^` are the monoid op-
---   erations and `negateV` is `invert`
---
+-- | `Currency` is an `AdditiveGroup` where `zeroV` and `^+^` are the monoid
+--   operations and `negateV` is `invert`
 instance AdditiveGroup Currency where
   zeroV = empty
   (^+^) = plus
@@ -55,9 +53,6 @@ instance Show Currency where
     showF v' = show ((a / b) :: Double) where (a, b) = (fromInteger $ numerator v', fromInteger $ denominator v')
 
 -- | `Currency` is a `VectorSpace` with `scale`
---
--- prop> \(r :: Currency) -> 0 *^ r == zeroV
--- prop> \(r :: Currency) -> 1 *^ r == r
 instance VectorSpace Currency where
   type Scalar Currency = Rational
   (*^) = scale
@@ -81,6 +76,9 @@ add :: Rational -> String -> Currency -> Currency
 add r s = Currency . nonZero . M.insertWith (+) s r . view values
 
 -- | Scale a currency by a factor
+--
+-- prop> \(r :: Currency) -> scale 0 r == empty
+-- prop> \(r :: Currency) -> scale 1 r == r
 --
 -- >>> scale 2 $ currency 1 "EUR"
 -- 2.0 EUR
