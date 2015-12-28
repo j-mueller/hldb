@@ -1,6 +1,6 @@
 name:                hldb
 version:             0.1.0.0
-synopsis:            Initial project template from stack
+synopsis:            A webapp with reports for your hledger journals
 description:         Please see README.md
 homepage:            http://github.com/j-mueller/hldb#readme
 license:             BSD3
