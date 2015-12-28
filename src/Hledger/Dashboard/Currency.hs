@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 module Hledger.Dashboard.Currency(
-  Currency,
+  Currency(..),
   -- * Constructors
   empty,
   currency,

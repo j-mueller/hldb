@@ -14,7 +14,7 @@ import           Data.Time.Calendar (
   fromGregorian,
   toGregorian)
 import           Data.Time.Calendar.WeekDate (fromWeekDate, toWeekDate)
-import           Hledger.Dashboard.Account
+import           Hledger.Dashboard.Account (Accounts)
 import           Hledger.Dashboard.Currency (Currency)
 import           Numeric.Interval
 
@@ -26,7 +26,7 @@ enumerate = enumFromTo minBound maxBound
 
 -- | Journal contains accounts for various reporting periods
 data Journal = Journal {
-  _intervals :: M.Map (Day, ReportingInterval) Account,
+  _intervals :: M.Map (Day, ReportingInterval) Accounts,
   _firstDay :: Maybe Day
 }
 
@@ -73,7 +73,7 @@ breakDown i = current : rest where
     False -> breakDown $ nextStart ... t
 
 -- | Get accounts for an interval
-accountsFor :: Interval Day -> Journal -> Account
+accountsFor :: Interval Day -> Journal -> Accounts
 accountsFor i j = fold accts where
   start = maybe fd (min fd) $ view firstDay j
   fd = inf i
@@ -81,6 +81,6 @@ accountsFor i j = fold accts where
   accts = map lookp $ breakDown i
 
 -- | Get balance since beginning of journal
-balance :: Day -> Journal -> Account
+balance :: Day -> Journal -> Accounts
 balance d j = accountsFor (start ... d) j where
   start = maybe d id $ view firstDay j
