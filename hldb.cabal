@@ -56,7 +56,8 @@ test-suite hldb-doctests
     build-depends:
       base,
       hldb,
-      doctest >= 0.10.1
+      doctest >= 0.10.1,
+      QuickCheck
 
 source-repository head
   type:     git
