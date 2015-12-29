@@ -37,13 +37,13 @@ data TreeMap k v = TreeMap {
 
 makeLenses ''TreeMap
 
-instance Monoid (TreeMap String Currency) where
+instance (Monoid v, Ord k) => Monoid (TreeMap k v) where
   mempty  = TreeMap mempty M.empty
   mappend l r = TreeMap n c where
     n = (l^.node) <> (r^.node)
     c = M.unionWith (<>) (l^.children) (r^.children)
 
-instance AdditiveGroup (TreeMap String Currency) where
+instance (AdditiveGroup v, Monoid v, Ord k) => AdditiveGroup (TreeMap k v) where
   zeroV = mempty
   l ^+^ r = l <> r
   negateV = fmap negateV
