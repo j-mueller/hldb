@@ -1,16 +1,9 @@
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE FlexibleInstances #-}
 module Hledger.Dashboard.Account(
   Accounts(..),
   accounts,
   empty,
-  merge,
-  -- * Utility type
-  TreeMap(..),
-  node,
-  children
+  merge
 ) where
 
 import           Control.Lens hiding (children)
@@ -18,6 +11,7 @@ import           Data.AdditiveGroup
 import           Data.Foldable
 import qualified Data.Map.Strict as M
 import           Data.Monoid
+import           Data.TreeMap (TreeMap(..))
 import           Hledger.Dashboard.Currency (Currency)
 
 -- $setup
@@ -29,29 +23,19 @@ import           Hledger.Dashboard.Currency (Currency)
 -- >>> instance Arbitrary Accounts where arbitrary = Accounts <$> fmap M.fromList arbitrary
 -- >>> :set -XScopedTypeVariables
 
-data TreeMap k v = TreeMap {
-  _node :: !v,
-  _children :: !(M.Map k (TreeMap k v))
-}
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
-
-makeLenses ''TreeMap
-
-instance (Monoid v, Ord k) => Monoid (TreeMap k v) where
-  mempty  = TreeMap mempty M.empty
-  mappend l r = TreeMap n c where
-    n = (l^.node) <> (r^.node)
-    c = M.unionWith (<>) (l^.children) (r^.children)
-
-instance (AdditiveGroup v, Monoid v, Ord k) => AdditiveGroup (TreeMap k v) where
-  zeroV = mempty
-  l ^+^ r = l <> r
-  negateV = fmap negateV
-
 newtype Accounts = Accounts { _accounts :: M.Map String (TreeMap String Currency) }
   deriving (Eq, Ord, Show)
 
 makeLenses ''Accounts
+
+instance Monoid Accounts where
+  mempty = empty
+  mappend = merge
+
+instance AdditiveGroup Accounts where
+  zeroV = mempty
+  l ^+^ r = l <> r
+  negateV = Accounts . M.map negateV . view accounts
 
 -- | An empty set of `Accounts`
 empty :: Accounts
@@ -65,12 +49,3 @@ empty = Accounts M.empty
 -- prop> \((l, r) :: (Accounts, Accounts)) -> l `merge` r == r `merge` l
 merge :: Accounts -> Accounts -> Accounts
 merge l r = Accounts $ M.unionWith (<>) (view accounts l) (view accounts r)
-
-instance Monoid Accounts where
-  mempty = empty
-  mappend = merge
-
-instance AdditiveGroup Accounts where
-  zeroV = mempty
-  l ^+^ r = l <> r
-  negateV = Accounts . M.map negateV . view accounts
