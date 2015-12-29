@@ -69,3 +69,8 @@ merge l r = Accounts $ M.unionWith (<>) (view accounts l) (view accounts r)
 instance Monoid Accounts where
   mempty = empty
   mappend = merge
+
+instance AdditiveGroup Accounts where
+  zeroV = mempty
+  l ^+^ r = l <> r
+  negateV = Accounts . M.map negateV . view accounts
