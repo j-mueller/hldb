@@ -33,7 +33,6 @@ library
     deepseq,
     intervals,
     lens,
-    scientific,
     text,
     time,
     vector-space
