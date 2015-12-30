@@ -13,21 +13,26 @@ import           Data.AdditiveGroup
 import           Data.Foldable
 import qualified Data.Map.Strict as M
 import           Data.Monoid
+import           Data.Text (Text)
 import           Data.TreeMap (TreeMap(..))
 import           Hledger.Dashboard.Currency (Currency)
 
 -- $setup
 -- >>> import Control.Applicative hiding (empty)
+-- >>> import Data.Text (Text)
+-- >>> import qualified Data.Text as T
 -- >>> import Test.QuickCheck hiding (scale)
 -- >>> import Hledger.Dashboard.Currency (Currency(..))
--- >>> instance Arbitrary Currency where arbitrary = Currency <$> fmap M.fromList arbitrary
+-- >>> :set -XScopedTypeVariables
+-- >>> :set -XFlexibleInstances
+-- >>> instance Arbitrary Text where arbitrary = T.pack <$> arbitrary
+-- >>> instance Arbitrary (Currency Text) where arbitrary = Currency <$> fmap M.fromList arbitrary
 -- >>> instance (Ord k, Arbitrary k, Arbitrary v) => Arbitrary (TreeMap k v) where arbitrary = TreeMap <$> arbitrary <*> (fmap M.fromList $ fmap (\l -> if length l > 2 then [] else l) arbitrary)
 -- >>> instance Arbitrary Accounts where arbitrary = Accounts <$> fmap M.fromList arbitrary
--- >>> :set -XScopedTypeVariables
 
 -- | An account is a `TreeMap String Currency` and `Accounts` is a top-level
 --   account.
-newtype Accounts = Accounts { _accounts :: M.Map String (TreeMap String Currency) }
+newtype Accounts = Accounts { _accounts :: M.Map Text (TreeMap Text (Currency Text)) }
   deriving (Eq, Ord, Show)
 
 makeLenses ''Accounts
@@ -55,5 +60,5 @@ merge :: Accounts -> Accounts -> Accounts
 merge l r = Accounts $ M.unionWith (<>) (view accounts l) (view accounts r)
 
 -- | Create an `Accounts` object with a single top-level account
-account :: String -> TreeMap String Currency -> Accounts
+account :: Text -> TreeMap Text (Currency Text) -> Accounts
 account n = Accounts . M.singleton n

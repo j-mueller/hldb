@@ -1,5 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleInstances #-}
 module Hledger.Dashboard.Currency(
   Currency(..),
   -- * Constructors
@@ -9,105 +10,152 @@ module Hledger.Dashboard.Currency(
   add,
   scale,
   plus,
-  invert
+  invert,
+  toList,
+  -- * Parser
+  currencyP
 ) where
 
+import           Control.Applicative hiding (empty  )
 import           Control.Lens hiding ((...), singular)
 import           Data.AdditiveGroup
+import           Data.Attoparsec.Text
+import           Data.Char (isPrint, isSpace)
 import           Data.List (intercalate)
 import           Data.Monoid
 import qualified Data.Map.Strict as M
 import           Data.Ratio
+import           Data.Text (Text)
+import qualified Data.Text as T
 import           Data.VectorSpace
 
 -- | Values with currencies.
-newtype Currency = Currency { _values :: M.Map String Rational }
+newtype Currency a = Currency { _values :: M.Map a Rational }
   deriving (Eq, Ord)
 
 makeLenses ''Currency
 
-nonZero :: M.Map String Rational -> M.Map String Rational
+nonZero :: Ord a => M.Map a Rational -> M.Map a Rational
 nonZero = M.filter (not . (==) 0)
 
 -- $setup
 -- >>> import Control.Applicative hiding (empty)
+-- >>> import Data.Attoparsec.Text
+-- >>> import Data.Text (Text)
+-- >>> import qualified Data.Text as T
 -- >>> import Test.QuickCheck hiding (scale)
--- >>> instance Arbitrary Currency where arbitrary = Currency <$> fmap M.fromList arbitrary
 -- >>> :set -XScopedTypeVariables
+-- >>> :set -XOverloadedStrings
+-- >>> :set -XFlexibleInstances
+-- >>> instance Arbitrary (Currency Text) where arbitrary = Currency <$> (fmap M.fromList $ fmap (fmap (\p -> (T.pack $ fst p, snd p))) $ arbitrary)
 
 -- | `Currency` is a `Monoid` where `<>` is `plus` and `mempty` is `empty`
-instance Monoid Currency where
+instance Ord a => Monoid (Currency a) where
   mempty = empty
   mappend = plus
 
 -- | `Currency` is an `AdditiveGroup` where `zeroV` and `^+^` are the monoid
 --   operations and `negateV` is `invert`
-instance AdditiveGroup Currency where
+instance Ord a => AdditiveGroup (Currency a) where
   zeroV = empty
   (^+^) = plus
   negateV = invert
 
-instance Show Currency where
-  show c = intercalate ", " $ fmap (\(k, v) -> (showF v) ++ " " ++ k) $ M.assocs $ view values c where
-    showF :: Rational -> String
-    showF v' = show ((a / b) :: Double) where (a, b) = (fromInteger $ numerator v', fromInteger $ denominator v')
+instance (Ord a, Show a) => Show (Currency a) where
+  show = show . toList
 
 -- | `Currency` is a `VectorSpace` with `scale`
-instance VectorSpace Currency where
-  type Scalar Currency = Rational
+instance Ord a => VectorSpace (Currency a) where
+  type Scalar (Currency a) = Rational
   (*^) = scale
 
 -- | Create a `Currency` with a single value
 --
 -- >>> currency 1 "EUR"
--- 1.0 EUR
-currency :: Rational -> String -> Currency
-currency r s = Currency $ nonZero $ M.fromList [(s, r)]
+-- [("EUR",1 % 1)]
+currency :: Rational -> Text -> Currency Text
+currency r = Currency . nonZero . flip M.singleton r
 
 -- | Add an amount to a `Currency`
 --
 -- >>> add 1 "EUR" $ currency 1 "EUR"
--- 2.0 EUR
+-- [("EUR",2 % 1)]
 -- >>> add 1 "GBP" $ currency 1 "EUR"
--- 1.0 EUR, 1.0 GBP
+-- [("EUR",1 % 1),("GBP",1 % 1)]
 -- >>> add (-1) "GBP" $ currency 1 "GBP"
--- <BLANKLINE>
-add :: Rational -> String -> Currency -> Currency
+-- []
+add :: Ord a => Rational -> a -> Currency a -> Currency a
 add r s = Currency . nonZero . M.insertWith (+) s r . view values
 
 -- | Scale a currency by a factor
 --
--- prop> \(r :: Currency) -> scale 0 r == empty
--- prop> \(r :: Currency) -> scale 1 r == r
+-- prop> \(r :: Currency Text) -> scale 0 r == empty
+-- prop> \(r :: Currency Text) -> scale 1 r == r
 --
 -- >>> scale 2 $ currency 1 "EUR"
--- 2.0 EUR
+-- [("EUR",2 % 1)]
 -- >>> scale 2.5 $ add 1 "GBP" $ currency 5 "EUR"
--- 12.5 EUR, 2.5 GBP
+-- [("EUR",25 % 2),("GBP",5 % 2)]
 -- >>> scale 0 $ currency 1 "EUR"
--- <BLANKLINE>
-scale :: Rational -> Currency -> Currency
+-- []
+scale :: Ord a => Rational -> Currency a -> Currency a
 scale f = Currency . nonZero . M.map ((*) f) . view values
 
 -- | Empty `Currency` with no values.
 --
 -- >>> empty
--- <BLANKLINE>
-empty :: Currency
+-- []
+empty :: Currency a
 empty = Currency M.empty
 
 -- | Combine two `Currency`s by adding their values.
 --
--- prop> \(r :: Currency) -> r `plus` mempty == r
--- prop> \(r :: Currency) -> mempty `plus` r == r
--- prop> \((a, b, c) :: (Currency, Currency, Currency)) -> (a `plus` b) `plus` c == a `plus` (b `plus` c)
--- prop> \((l, r) :: (Currency, Currency)) -> l `plus` r == r `plus` l
-plus :: Currency -> Currency -> Currency
+-- prop> \(r :: Currency Text) -> r `plus` mempty == r
+-- prop> \(r :: Currency Text) -> mempty `plus` r == r
+-- prop> \((a, b, c) :: (Currency Text, Currency Text, Currency Text)) -> (a `plus` b) `plus` c == a `plus` (b `plus` c)
+-- prop> \((l, r) :: (Currency Text, Currency Text)) -> l `plus` r == r `plus` l
+plus :: Ord a => Currency a -> Currency a -> Currency a
 plus l r = Currency $ nonZero $ M.unionWith (+) (l^.values) (r^.values)
 
 -- | Invert the values of a `Currency` by multiplying them with -1.
 --
--- prop> \(r :: Currency) -> (invert $ invert r) == r
--- prop> \(r :: Currency) -> r `plus` (invert r) == empty
-invert :: Currency -> Currency
+-- prop> \(r :: Currency Text) -> (invert $ invert r) == r
+-- prop> \(r :: Currency Text) -> r `plus` (invert r) == empty
+invert :: Ord a => Currency a -> Currency a
 invert = Currency . fmap negate . view values
+
+-- | Get a list of the values in this `Currency`
+toList :: Ord a => Currency a -> [(a, Rational)]
+toList = M.toList . view values
+
+-- | Parse a `Currency` from `Text`
+--
+-- >>> parseOnly currencyP "1 EUR"
+-- Right [(Just "EUR",1 % 1)]
+currencyP :: Parser (Currency (Maybe Text))
+currencyP = try leftSymbolCurrencyP <|> try rightSymbolCurrencyP <|> noSymbolCurrencyP where
+  currency' r = Currency . nonZero . flip M.singleton r
+  leftSymbolCurrencyP  = do
+    sgn <- signP
+    s   <- currencySymbol
+    ()  <- skipWhile isHorizontalSpace
+    amt <- fmap sgn $ rational
+    return $ currency' amt $ Just s
+  rightSymbolCurrencyP = do
+    amt <- rational
+    ()  <- skipWhile isHorizontalSpace
+    s   <- currencySymbol
+    return $ currency' amt $ Just s
+  noSymbolCurrencyP    = undefined
+
+-- | Parse a currency symbol
+currencySymbol :: Parser Text
+currencySymbol = takeWhile1 cond where
+  cond c = isPrint c && (not $ isSpace c)
+
+-- | Parse a sign (+/-) to a function,  `id` for optional '+' and `negate`
+--   for '-'
+signP :: Parser (Rational -> Rational)
+signP = try m <|> p where
+  m = char '-' >> return negate
+  p = option id $ char '+' >> return id

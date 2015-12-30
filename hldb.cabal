@@ -25,6 +25,7 @@ library
     Hledger.Dashboard.Currency,
     Hledger.Dashboard.Journal
   build-depends:
+    attoparsec,
     base >= 4.7 && < 5,
     contravariant,
     comonad,
@@ -32,6 +33,7 @@ library
     deepseq,
     intervals,
     lens,
+    scientific,
     text,
     time,
     vector-space
