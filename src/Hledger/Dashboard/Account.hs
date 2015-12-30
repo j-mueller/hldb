@@ -3,6 +3,8 @@ module Hledger.Dashboard.Account(
   Accounts(..),
   accounts,
   empty,
+  account,
+  -- * Combinators
   merge
 ) where
 
@@ -23,6 +25,8 @@ import           Hledger.Dashboard.Currency (Currency)
 -- >>> instance Arbitrary Accounts where arbitrary = Accounts <$> fmap M.fromList arbitrary
 -- >>> :set -XScopedTypeVariables
 
+-- | An account is a `TreeMap String Currency` and `Accounts` is a top-level
+--   account.
 newtype Accounts = Accounts { _accounts :: M.Map String (TreeMap String Currency) }
   deriving (Eq, Ord, Show)
 
@@ -49,3 +53,7 @@ empty = Accounts M.empty
 -- prop> \((l, r) :: (Accounts, Accounts)) -> l `merge` r == r `merge` l
 merge :: Accounts -> Accounts -> Accounts
 merge l r = Accounts $ M.unionWith (<>) (view accounts l) (view accounts r)
+
+-- | Create an `Accounts` object with a single top-level account
+account :: String -> TreeMap String Currency -> Accounts
+account n = Accounts . M.singleton n
