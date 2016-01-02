@@ -1,19 +1,26 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Hledger.Dashboard.Account(
   Accounts(..),
   accounts,
   empty,
   account,
   -- * Combinators
-  merge
+  merge,
+  -- * Parser
+  accountP
 ) where
 
+import           Control.Applicative hiding (empty)
 import           Control.Lens hiding (children)
 import           Data.AdditiveGroup
+import           Data.Attoparsec.Text
+import           Data.Char
 import           Data.Foldable
 import qualified Data.Map.Strict as M
 import           Data.Monoid
 import           Data.Text (Text)
+import qualified Data.Text as T
 import           Data.TreeMap (TreeMap(..))
 import           Hledger.Dashboard.Currency (Currency)
 
@@ -62,3 +69,15 @@ merge l r = Accounts $ M.unionWith (<>) (view accounts l) (view accounts r)
 -- | Create an `Accounts` object with a single top-level account
 account :: Text -> TreeMap Text (Currency Text) -> Accounts
 account n = Accounts . M.singleton n
+
+-- | Parse an `Accounts` value. Each node in the result will have at most one
+-- child.
+accountP :: Parser Accounts
+accountP = undefined -- TODO:
+
+-- | Parse the name of a single account (not in hierarchy).
+accountNameP :: Parser Text
+accountNameP = T.pack <$> theChars where
+  theChars = (:) <$> letter <*> rest
+  rest = manyTill anyChar end
+  end = string "  " <|> string "\r" <|> string "\r\n" <|> (fmap (const "")  endOfInput)

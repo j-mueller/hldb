@@ -13,7 +13,8 @@ module Hledger.Dashboard.Currency(
   invert,
   toList,
   -- * Parser
-  currencyP
+  currencyP,
+  defaultCurrencyP
 ) where
 
 import           Control.Applicative hiding (empty  )
@@ -37,6 +38,9 @@ makeLenses ''Currency
 
 nonZero :: Ord a => M.Map a Rational -> M.Map a Rational
 nonZero = M.filter (not . (==) 0)
+
+mapCurrencies :: Ord b => (a -> b) -> Currency a -> Currency b
+mapCurrencies f = Currency . M.mapKeys f . view values
 
 -- $setup
 -- >>> import Control.Applicative hiding (empty)
@@ -153,6 +157,14 @@ currencyP = try leftSymbolCurrencyP <|> try rightSymbolCurrencyP <|> noSymbolCur
     s   <- currencySymbol
     return $ currency' amt $ Just s
   noSymbolCurrencyP = currency' <$> rational <*> return Nothing
+
+-- | Parse a `Currency` with a default currency value
+--
+-- >>> parseOnly (defaultCurrencyP "EUR") "-10.0"
+-- Right [("EUR",(-10) % 1)]
+defaultCurrencyP :: Text -> Parser (Currency Text)
+defaultCurrencyP c = fmap applyDefault currencyP where
+  applyDefault = mapCurrencies (maybe c id)
 
 -- | Parse a currency symbol
 currencySymbol :: Parser Text
