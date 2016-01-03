@@ -9,6 +9,7 @@ module Data.TreeMap(
   -- * Constructors
   empty,
   leaf,
+  pathTo,
   -- * Combinators
   addChild,
   merge
@@ -19,6 +20,10 @@ import           Data.AdditiveGroup
 import           Data.Foldable
 import qualified Data.Map.Strict as M
 import           Data.Monoid
+
+-- $setup
+-- >>> import Data.Monoid
+-- >>> import Data.TreeMap
 
 -- | A tree whose children are indexed by a key rather than kept in a list
 data TreeMap k v = TreeMap {
@@ -55,3 +60,11 @@ leaf a = TreeMap a M.empty
 -- | Add a child to a `TreeMap`
 addChild :: (Monoid v, Ord k) => TreeMap k v -> (k, TreeMap k v) -> TreeMap k v
 addChild parent (k, v) = parent & children %~ M.insertWith mappend k v
+
+-- | Construct a `TreeMap` with a single path down to a leaf
+--
+-- >>> pathTo ["A", "B"] "f"
+-- TreeMap {_node = "", _children = fromList [("A",TreeMap {_node = "", _children = fromList [("B",TreeMap {_node = "f", _children = fromList []})]})]}
+pathTo :: (Monoid v, Ord k) => [k] -> v -> TreeMap k v
+pathTo []   v = TreeMap v M.empty
+pathTo (x:xs) v = TreeMap mempty $ M.singleton x $ pathTo xs v

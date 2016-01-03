@@ -21,7 +21,7 @@ import           Control.Applicative hiding (empty  )
 import           Control.Lens hiding ((...), singular)
 import           Data.AdditiveGroup
 import           Data.Attoparsec.Text
-import           Data.Char (isPrint, isSpace)
+import           Data.Char (isDigit, isPrint, isSpace)
 import           Data.List (intercalate)
 import           Data.Monoid
 import qualified Data.Map.Strict as M
@@ -142,8 +142,13 @@ toList = M.toList . view values
 -- Right [(Nothing,1 % 2)]
 -- >>> parseOnly currencyP "GBP 12.0"
 -- Right [(Just "GBP",12 % 1)]
+-- >>> parseOnly currencyP "GBP38.11"
+-- Right [(Just "GBP",3811 % 100)]
 currencyP :: Parser (Currency (Maybe Text))
-currencyP = try leftSymbolCurrencyP <|> try rightSymbolCurrencyP <|> noSymbolCurrencyP where
+currencyP = parse <?> "currencyP" where
+  parse = (leftSymbolCurrencyP  <?> "leftSymbolCurrencyP")
+      <|> (rightSymbolCurrencyP <?> "rightSymbolCurrencyP")
+      <|> (noSymbolCurrencyP    <?> "noSymbolCurrencyP")
   currency' r = Currency . nonZero . flip M.singleton r
   leftSymbolCurrencyP  = do
     sgn <- signP
@@ -168,8 +173,8 @@ defaultCurrencyP c = fmap applyDefault currencyP where
 
 -- | Parse a currency symbol
 currencySymbol :: Parser Text
-currencySymbol = takeWhile1 cond where
-  cond c = isPrint c && (not $ isSpace c)
+currencySymbol = takeWhile1 cond <?> "currency symbol" where
+  cond c = isPrint c && (not $ isSpace c) && (not $ isDigit c)
 
 -- | Parse a sign (+/-) to a function,  `id` for optional '+' and `negate`
 --   for '-'

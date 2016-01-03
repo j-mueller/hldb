@@ -21,8 +21,8 @@ import qualified Data.Map.Strict as M
 import           Data.Monoid
 import           Data.Text (Text)
 import qualified Data.Text as T
-import           Data.TreeMap (TreeMap(..))
-import           Hledger.Dashboard.Currency (Currency)
+import           Data.TreeMap (TreeMap(..), pathTo)
+import           Hledger.Dashboard.Currency (Currency, defaultCurrencyP)
 
 -- $setup
 -- >>> import Control.Applicative hiding (empty)
@@ -32,14 +32,15 @@ import           Hledger.Dashboard.Currency (Currency)
 -- >>> import Hledger.Dashboard.Currency (Currency(..))
 -- >>> :set -XScopedTypeVariables
 -- >>> :set -XFlexibleInstances
+-- >>> :set -XOverloadedStrings
 -- >>> instance Arbitrary Text where arbitrary = T.pack <$> arbitrary
 -- >>> instance Arbitrary (Currency Text) where arbitrary = Currency <$> fmap M.fromList arbitrary
 -- >>> instance (Ord k, Arbitrary k, Arbitrary v) => Arbitrary (TreeMap k v) where arbitrary = TreeMap <$> arbitrary <*> (fmap M.fromList $ fmap (\l -> if length l > 2 then [] else l) arbitrary)
--- >>> instance Arbitrary Accounts where arbitrary = Accounts <$> fmap M.fromList arbitrary
+-- >>> instance Arbitrary Accounts where arbitrary = Accounts <$> arbitrary
 
 -- | An account is a `TreeMap String Currency` and `Accounts` is a top-level
 --   account.
-newtype Accounts = Accounts { _accounts :: M.Map Text (TreeMap Text (Currency Text)) }
+newtype Accounts = Accounts { _accounts :: TreeMap Text (Currency Text) }
   deriving (Eq, Ord, Show)
 
 makeLenses ''Accounts
@@ -51,11 +52,11 @@ instance Monoid Accounts where
 instance AdditiveGroup Accounts where
   zeroV = mempty
   l ^+^ r = l <> r
-  negateV = Accounts . M.map negateV . view accounts
+  negateV = Accounts . negateV . view accounts
 
 -- | An empty set of `Accounts`
 empty :: Accounts
-empty = Accounts M.empty
+empty = Accounts mempty
 
 -- | Merge two `Accounts`'
 --
@@ -64,20 +65,41 @@ empty = Accounts M.empty
 -- prop> \((a, b, c) :: (Accounts, Accounts, Accounts)) -> (a `merge` b) `merge` c == a `merge` (b `merge` c)
 -- prop> \((l, r) :: (Accounts, Accounts)) -> l `merge` r == r `merge` l
 merge :: Accounts -> Accounts -> Accounts
-merge l r = Accounts $ M.unionWith (<>) (view accounts l) (view accounts r)
+merge l r = Accounts $ mappend (view accounts l) (view accounts r)
 
 -- | Create an `Accounts` object with a single top-level account
-account :: Text -> TreeMap Text (Currency Text) -> Accounts
-account n = Accounts . M.singleton n
+account :: TreeMap Text (Currency Text) -> Accounts
+account = Accounts
+
+data ParsingInfo = ParsingInfo{
+  _lastCurrency :: Text
+}
+  deriving (Eq, Ord, Show)
+
+makeLenses ''ParsingInfo
+
+defaultInfo :: ParsingInfo
+defaultInfo = ParsingInfo ""
 
 -- | Parse an `Accounts` value. Each node in the result will have at most one
 -- child.
-accountP :: Parser Accounts
-accountP = undefined -- TODO:
+--
+-- >>> fmap snd $ parseOnly (accountP defaultInfo) "Expenses:Cash                GBP38.11"
+-- Right (Accounts {_accounts = TreeMap {_node = [], _children = fromList [("Expenses",TreeMap {_node = [], _children = fromList [("Cash",TreeMap {_node = [("GBP",3811 % 100)], _children = fromList []})]})]}})
+accountP :: ParsingInfo -> Parser (ParsingInfo, Accounts)
+accountP info = do
+  accName <- accountNameP <?> "account name"
+  () <- skipWhile isSpace <?> "space between account name and currency"
+  curr <- (defaultCurrencyP $ info^.lastCurrency) <?> "currency"
+  return (info,Accounts $ pathTo accName curr)
 
--- | Parse the name of a single account (not in hierarchy).
-accountNameP :: Parser Text
-accountNameP = T.pack <$> theChars where
+-- | Parse the name of an account in a hierarchy.
+--
+-- >>> parseOnly accountNameP "Expenses:Cash"
+-- Right ["Expenses","Cash"]
+accountNameP :: Parser [Text]
+accountNameP = fmap (T.splitOn ":") p where
+  p = T.pack <$> theChars <?> "account name"
   theChars = (:) <$> letter <*> rest
-  rest = manyTill anyChar end
+  rest = manyTill anyChar end <?> "rest of account name"
   end = string "  " <|> string "\r" <|> string "\r\n" <|> (fmap (const "")  endOfInput)
