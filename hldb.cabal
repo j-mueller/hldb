@@ -23,7 +23,8 @@ library
     Data.TreeMap,
     Hledger.Dashboard.Account,
     Hledger.Dashboard.Currency,
-    Hledger.Dashboard.Journal
+    Hledger.Dashboard.Journal,
+    Hledger.Dashboard.Transaction
   build-depends:
     attoparsec,
     base >= 4.7 && < 5,
@@ -33,6 +34,7 @@ library
     deepseq,
     intervals,
     lens,
+    mtl,
     text,
     time,
     vector-space
@@ -47,6 +49,7 @@ executable hldb-exe
   default-language:    Haskell2010
 
 test-suite hldb-doctests
+  default-language:    Haskell2010
   type:           exitcode-stdio-1.0
   main-is:        doctests.hs
   ghc-options:    -Wall -threaded

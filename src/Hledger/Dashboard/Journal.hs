@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TupleSections #-}
 module Hledger.Dashboard.Journal where
 
 import           Control.Lens hiding ((...), singular)
@@ -31,6 +32,14 @@ data Journal = Journal {
 }
 
 makeLenses ''Journal
+
+-- TODO: instance Monoid Journal
+
+-- | Create a journal with a single entry
+singleton :: Day -> Accounts -> Journal
+singleton d a = Journal is fd where
+  is = M.fromList $ fmap (flip (,) a) $ fmap (\i -> (begin i d, i)) enumerate
+  fd = Just d
 
 -- | Get the first day of the interval containing the given day
 -- | If the interval is `Day` then `begin` and `end` both evaluate to `id`
