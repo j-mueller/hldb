@@ -24,9 +24,9 @@ library
     Hledger.Dashboard.Account,
     Hledger.Dashboard.Currency,
     Hledger.Dashboard.Journal,
+    Hledger.Dashboard.ParsingState,
     Hledger.Dashboard.Transaction
   build-depends:
-    attoparsec,
     base >= 4.7 && < 5,
     contravariant,
     comonad,
@@ -35,6 +35,7 @@ library
     intervals,
     lens,
     mtl,
+    parsec,
     text,
     time,
     vector-space

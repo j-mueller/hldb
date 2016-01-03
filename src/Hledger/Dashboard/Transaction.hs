@@ -8,10 +8,12 @@ module Hledger.Dashboard.Transaction(
 
 import           Control.Lens
 import           Control.Monad.Identity
-import           Data.Attoparsec.Text
+import           Control.Monad.State
 import           Data.Time.Calendar (Day)
+import           Text.Parsec.Text
 
-import           Hledger.Dashboard.Account(Accounts)
+import           Hledger.Dashboard.Account (Accounts)
+import           Hledger.Dashboard.ParsingState (ParsingState)
 
 -- | A transaction consists of a date, accounts and some metadata
 data Transaction f = Transaction{
@@ -30,5 +32,5 @@ makeLenses ''Transaction
 --     Expenses:Gifts  €10
 --     Assets:Cash
 -- @
-transactionP :: Parser (Transaction Identity)
+transactionP :: StateT ParsingState Parser (Transaction Identity)
 transactionP = undefined

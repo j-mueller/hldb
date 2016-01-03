@@ -1,6 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Hledger.Dashboard.Currency(
   Currency(..),
   -- * Constructors
@@ -17,10 +18,10 @@ module Hledger.Dashboard.Currency(
   defaultCurrencyP
 ) where
 
-import           Control.Applicative hiding (empty  )
+import           Control.Applicative hiding (empty)
 import           Control.Lens hiding ((...), singular)
+import           Control.Monad.State
 import           Data.AdditiveGroup
-import           Data.Attoparsec.Text
 import           Data.Char (isDigit, isPrint, isSpace)
 import           Data.List (intercalate)
 import           Data.Monoid
@@ -29,6 +30,12 @@ import           Data.Ratio
 import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.VectorSpace
+import           Text.Parsec hiding ((<|>), many)
+import           Text.Parsec.Combinator
+import           Text.Parsec.Text
+import           Text.Read (readMaybe)
+
+import Hledger.Dashboard.ParsingState
 
 -- | Values with currencies.
 newtype Currency a = Currency { _values :: M.Map a Rational }
@@ -44,7 +51,9 @@ mapCurrencies f = Currency . M.mapKeys f . view values
 
 -- $setup
 -- >>> import Control.Applicative hiding (empty)
--- >>> import Data.Attoparsec.Text
+-- >>> import Control.Monad.State
+-- >>> import Text.Parsec.Text
+-- >>> import Text.Parsec.Prim
 -- >>> import Data.Text (Text)
 -- >>> import qualified Data.Text as T
 -- >>> import Test.QuickCheck hiding (scale)
@@ -52,6 +61,7 @@ mapCurrencies f = Currency . M.mapKeys f . view values
 -- >>> :set -XOverloadedStrings
 -- >>> :set -XFlexibleInstances
 -- >>> instance Arbitrary (Currency Text) where arbitrary = Currency <$> (fmap M.fromList $ fmap (fmap (\p -> (T.pack $ fst p, snd p))) $ arbitrary)
+-- >>> let parseOnly p s = evalState (runParserT p () "" s) defaultParsingState
 
 -- | `Currency` is a `Monoid` where `<>` is `plus` and `mempty` is `empty`
 instance Ord a => Monoid (Currency a) where
@@ -135,50 +145,62 @@ toList = M.toList . view values
 -- | Parse a `Currency` from `Text`. The return value has a single
 -- currency-amount pair. If no currency amount is found, then the currency will
 -- be `Nothing`.
---
--- >>> parseOnly currencyP "1 EUR"
+-- >>> parseOnly currencyP $ T.pack "1 EUR"
 -- Right [(Just "EUR",1 % 1)]
--- >>> parseOnly currencyP "0.5"
+-- >>> parseOnly currencyP $ T.pack "0.5"
 -- Right [(Nothing,1 % 2)]
--- >>> parseOnly currencyP "GBP 12.0"
+-- >>> parseOnly currencyP $ T.pack "GBP 12.0"
 -- Right [(Just "GBP",12 % 1)]
--- >>> parseOnly currencyP "GBP38.11"
+-- >>> parseOnly currencyP $ T. pack "GBP38.11"
 -- Right [(Just "GBP",3811 % 100)]
-currencyP :: Parser (Currency (Maybe Text))
+currencyP :: (Monad m, MonadState ParsingState m, Stream s m Char) => ParsecT s u m (Currency (Maybe Text))
 currencyP = parse <?> "currencyP" where
-  parse = (leftSymbolCurrencyP  <?> "leftSymbolCurrencyP")
-      <|> (rightSymbolCurrencyP <?> "rightSymbolCurrencyP")
+  parse = (try leftSymbolCurrencyP  <?> "leftSymbolCurrencyP")
+      <|> (try rightSymbolCurrencyP <?> "rightSymbolCurrencyP")
       <|> (noSymbolCurrencyP    <?> "noSymbolCurrencyP")
   currency' r = Currency . nonZero . flip M.singleton r
   leftSymbolCurrencyP  = do
     sgn <- signP
     s   <- currencySymbol
-    ()  <- skipWhile isHorizontalSpace
+    _  <- many (satisfy isSpace)
     amt <- fmap sgn $ rational
     return $ currency' amt $ Just s
   rightSymbolCurrencyP = do
     amt <- rational
-    ()  <- skipWhile isHorizontalSpace
+    _  <- many (satisfy isSpace)
     s   <- currencySymbol
     return $ currency' amt $ Just s
-  noSymbolCurrencyP = currency' <$> rational <*> return Nothing
+  noSymbolCurrencyP = do
+    sgn <- signP
+    r <- fmap sgn $ rational
+    return $ currency' r $ Nothing
 
 -- | Parse a `Currency` with a default currency value
 --
--- >>> parseOnly (defaultCurrencyP "EUR") "-10.0"
+-- >>> parseOnly defaultCurrencyP $ T.pack "-10.0"
 -- Right [("EUR",(-10) % 1)]
-defaultCurrencyP :: Text -> Parser (Currency Text)
-defaultCurrencyP c = fmap applyDefault currencyP where
-  applyDefault = mapCurrencies (maybe c id)
+defaultCurrencyP :: (Monad m, MonadState ParsingState m, Stream s m Char) => ParsecT s u m (Currency Text)
+defaultCurrencyP = do
+  c <- gets $ view lastCurrency
+  let applyDefault = mapCurrencies (maybe c id)
+  fmap applyDefault currencyP
 
 -- | Parse a currency symbol
-currencySymbol :: Parser Text
-currencySymbol = takeWhile1 cond <?> "currency symbol" where
+currencySymbol :: (Monad m, MonadState ParsingState m, Stream s m Char) => ParsecT s u m Text
+currencySymbol = fmap T.pack p where
+  p = many1 (satisfy cond) <?> "currency symbol"
   cond c = isPrint c && (not $ isSpace c) && (not $ isDigit c)
 
 -- | Parse a sign (+/-) to a function,  `id` for optional '+' and `negate`
 --   for '-'
-signP :: Parser (Rational -> Rational)
+signP :: (Monad m, Stream s m Char) => ParsecT s u m (Rational -> Rational)
 signP = try m <|> p where
   m = char '-' >> return negate
   p = option id $ char '+' >> return id
+
+rational :: (Stream s m Char, Monad m) => ParsecT s u m Rational
+rational = do
+  s <- signP
+  let cond c = isDigit c || c == '.'
+  chars <- many (satisfy cond) <?> "rational"
+  maybe (fail "") (return . s) $ readMaybe chars
