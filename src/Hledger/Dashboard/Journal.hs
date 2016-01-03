@@ -38,7 +38,7 @@ makeLenses ''Journal
 -- | Create a journal with a single entry
 singleton :: Day -> Accounts -> Journal
 singleton d a = Journal is fd where
-  is = M.fromList $ fmap (flip (,) a) $ fmap (\i -> (begin i d, i)) enumerate
+  is = M.fromList $ fmap (flip (,) a . ((,) <$> flip begin d <*> id)) enumerate
   fd = Just d
 
 -- | Get the first day of the interval containing the given day
