@@ -18,7 +18,7 @@ module Hledger.Dashboard.Currency(
   defaultCurrencyP
 ) where
 
-import           Control.Applicative hiding (empty)
+import           Control.Applicative hiding (empty, optional)
 import           Control.Lens hiding ((...), singular)
 import           Control.Monad.State
 import           Data.AdditiveGroup
@@ -33,7 +33,7 @@ import           Data.VectorSpace
 import           Text.Parsec hiding ((<|>), many)
 import           Text.Parsec.Combinator
 import           Text.Parsec.Text
-import           Text.Read (readMaybe)
+import           Text.Read (readEither)
 
 import Hledger.Dashboard.ParsingState
 
@@ -58,10 +58,9 @@ mapCurrencies f = Currency . M.mapKeys f . view values
 -- >>> import qualified Data.Text as T
 -- >>> import Test.QuickCheck hiding (scale)
 -- >>> :set -XScopedTypeVariables
--- >>> :set -XOverloadedStrings
 -- >>> :set -XFlexibleInstances
 -- >>> instance Arbitrary (Currency Text) where arbitrary = Currency <$> (fmap M.fromList $ fmap (fmap (\p -> (T.pack $ fst p, snd p))) $ arbitrary)
--- >>> let parseOnly p s = evalState (runParserT p () "" s) defaultParsingState
+-- >>> let parseOnly p s = evalState (runParserT p () "" (T.pack s)) defaultParsingState
 
 -- | `Currency` is a `Monoid` where `<>` is `plus` and `mempty` is `empty`
 instance Ord a => Monoid (Currency a) where
@@ -145,40 +144,40 @@ toList = M.toList . view values
 -- | Parse a `Currency` from `Text`. The return value has a single
 -- currency-amount pair. If no currency amount is found, then the currency will
 -- be `Nothing`.
--- >>> parseOnly currencyP $ T.pack "1 EUR"
+-- >>> parseOnly currencyP "1 EUR"
 -- Right [(Just "EUR",1 % 1)]
--- >>> parseOnly currencyP $ T.pack "0.5"
+-- >>> parseOnly currencyP "0.5"
 -- Right [(Nothing,1 % 2)]
--- >>> parseOnly currencyP $ T.pack "GBP 12.0"
+-- >>> parseOnly currencyP "GBP 12.0"
 -- Right [(Just "GBP",12 % 1)]
--- >>> parseOnly currencyP $ T. pack "GBP38.11"
+-- >>> parseOnly currencyP "GBP38.11"
 -- Right [(Just "GBP",3811 % 100)]
 currencyP :: (Monad m, MonadState ParsingState m, Stream s m Char) => ParsecT s u m (Currency (Maybe Text))
-currencyP = parse <?> "currencyP" where
-  parse = (try leftSymbolCurrencyP  <?> "leftSymbolCurrencyP")
-      <|> (try rightSymbolCurrencyP <?> "rightSymbolCurrencyP")
+currencyP = pr <?> "currencyP" where
+  pr = (try leftSymbolCurrencyP <?> "leftSymbolCurrencyP")
+      <|> (try rightSymbolCurrencyP  <?> "rightSymbolCurrencyP")
       <|> (noSymbolCurrencyP    <?> "noSymbolCurrencyP")
   currency' r = Currency . nonZero . flip M.singleton r
   leftSymbolCurrencyP  = do
-    sgn <- signP
-    s   <- currencySymbol
-    _  <- many (satisfy isSpace)
-    amt <- fmap sgn $ rational
+    sgn <- signP <?> "sign"
+    s   <- currencySymbol <?> "currency symbol"
+    _  <- many (satisfy isSpace) <?> "space"
+    amt <- fmap sgn $ (rational <?> "rational")
     return $ currency' amt $ Just s
   rightSymbolCurrencyP = do
     amt <- rational
-    _  <- many (satisfy isSpace)
+    _   <- many (satisfy isSpace)
     s   <- currencySymbol
     return $ currency' amt $ Just s
   noSymbolCurrencyP = do
     sgn <- signP
-    r <- fmap sgn $ rational
+    r   <- fmap sgn $ rational
     return $ currency' r $ Nothing
 
 -- | Parse a `Currency` with a default currency value
 --
--- >>> parseOnly defaultCurrencyP $ T.pack "-10.0"
--- Right [("EUR",(-10) % 1)]
+-- >>> parseOnly defaultCurrencyP "-10.0"
+-- Right [("",(-10) % 1)]
 defaultCurrencyP :: (Monad m, MonadState ParsingState m, Stream s m Char) => ParsecT s u m (Currency Text)
 defaultCurrencyP = do
   c <- gets $ view lastCurrency
@@ -198,9 +197,18 @@ signP = try m <|> p where
   m = char '-' >> return negate
   p = option id $ char '+' >> return id
 
+-- | Parse a rational number
+--
+-- >>> parseOnly rational "1.1"
+-- Right (11 % 10)
+-- >>> parseOnly rational "-1"
+-- Right ((-1) % 1)
 rational :: (Stream s m Char, Monad m) => ParsecT s u m Rational
 rational = do
   s <- signP
-  let cond c = isDigit c || c == '.'
-  chars <- many (satisfy cond) <?> "rational"
-  maybe (fail "") (return . s) $ readMaybe chars
+  before <- many digit
+  _ <- optional $ char '.'
+  after <- many digit
+  case (before ++ after) of
+    [] -> return 0
+    ds -> either fail (return . s . flip (%) (10^(length after))) (readEither ds :: Either String Integer)
