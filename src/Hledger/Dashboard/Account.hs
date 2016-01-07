@@ -89,8 +89,8 @@ account = Accounts
 accountP :: (Monad m, Stream s m Char, MonadState ParsingState m) => ParsecT s u m Accounts
 accountP = do
   accName <- accountNameP <?> "account name"
-  _ <- many (satisfy isSpace) <?> "space between account name and currency"
-  curr <- defaultCurrencyP <?> "currency"
+  _       <- spaces <?> "space between account name and currency"
+  curr    <- defaultCurrencyP <?> "currency" -- TODO: Balance transaction if no currency is found
   return $ Accounts $ pathTo accName curr
 
 -- | Parse the name of an account in a hierarchy.
