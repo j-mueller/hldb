@@ -16,7 +16,6 @@ addons:
 # change flags or use --stack-yaml to point to a different file.
 env:
 - ARGS="--stack-yaml stack-ghc.yaml test"
-- ARGS="--stack-yaml stack-ghcjs.yaml build"
 - ARGS="--stack-yaml stack-ghc.yaml --resolver lts-3 test"
 
 before_install:

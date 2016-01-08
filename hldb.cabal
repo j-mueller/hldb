@@ -21,6 +21,10 @@ flag test-hunit
   default: True
   manual: True
 
+flag webapp
+  default: False
+  manual: True
+
 library
   hs-source-dirs:      src
   exposed-modules:
@@ -50,9 +54,12 @@ executable hldb-exe
   hs-source-dirs:      webapp
   main-is:             Main.hs
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
-  build-depends:       base
-                     , hldb
-                     , react-flux
+  if !flag(webapp)
+    buildable: False
+  else
+    build-depends:       base
+                       , hldb
+                       , react-flux
   default-language:    Haskell2010
 
 test-suite hldb-doctests

@@ -6,6 +6,8 @@ import React.Flux
 import Hledger.Dashboard.Account
 import Hledger.Dashboard.Currency
 
+import Styles
+
 main :: IO ()
 main = reactRender "hldb" ledgerDashboard ()
 
