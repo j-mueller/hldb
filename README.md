@@ -10,13 +10,7 @@ Install stack, then run
 stack build --stack-yaml stack-ghcjs.yaml
 ```
 
-You may need to follow stack's instructions to install GHCJS
-
-# TODO
-
-1. Finish parser in Hledger.Dashboard.Transaction:
-  - Balance transactions
-  - Write last values for currency, amount etc. to `ParsingState`
+You may need to follow stack's instructions to install GHCJS. 
 
 # License
 

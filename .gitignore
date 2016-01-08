@@ -4,10 +4,7 @@
 **/dist
 **/log
 cabal.sandbox.config
-*.sublime-workspace
 dist
-amseldb
 .history
-.amsel
-
 .stack-work
+*.js

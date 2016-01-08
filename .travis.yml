@@ -15,9 +15,9 @@ addons:
 # The different configurations we want to test. You could also do things like
 # change flags or use --stack-yaml to point to a different file.
 env:
-- ARGS="--stack-yaml stack-ghc.yaml"
-- ARGS="--stack-yaml stack-ghcjs.yaml"
-- ARGS="--stack-yaml stack-ghc.yaml --resolver lts-3"
+- ARGS="--stack-yaml stack-ghc.yaml test"
+- ARGS="--stack-yaml stack-ghcjs.yaml build"
+- ARGS="--stack-yaml stack-ghc.yaml --resolver lts-3 test"
 
 before_install:
 # Download and unpack the stack executable
@@ -29,7 +29,7 @@ before_install:
 # executables, and test suites, and runs the test suites. --no-terminal works
 # around some quirks in Travis's terminal implementation.
 script:
-  - stack $ARGS --no-terminal --install-ghc test
+  - stack $ARGS --no-terminal --install-ghc
 
 # Caching so the next build will be fast too.
 cache:
