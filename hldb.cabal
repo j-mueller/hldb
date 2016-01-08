@@ -17,6 +17,10 @@ flag test-doctests
   default: True
   manual: True
 
+flag test-hunit
+  default: True
+  manual: True
+
 library
   hs-source-dirs:      src
   exposed-modules:
@@ -63,6 +67,26 @@ test-suite hldb-doctests
       hldb,
       doctest >= 0.10.1,
       QuickCheck
+
+test-suite hldb-hunit
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  main-is: hunit.hs
+  ghc-options: -w -threaded -rtsopts -with-rtsopts=-N
+  hs-source-dirs: test
+  if !flag(test-hunit)
+    buildable: False
+  else
+    build-depends:
+      base,
+      hldb,
+      HUnit,
+      mtl,
+      text,
+      parsec,
+      test-framework,
+      test-framework-hunit,
+      test-framework-th
 
 source-repository head
   type:     git

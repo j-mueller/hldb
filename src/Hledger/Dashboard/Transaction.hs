@@ -4,7 +4,8 @@
 module Hledger.Dashboard.Transaction(
   Transaction(..),
   date,
-  accounts
+  accounts,
+  transactionP
 ) where
 
 import           Control.Lens
@@ -55,9 +56,6 @@ makeLenses ''Transaction
 --     Assets:Cash
 -- @
 --
--- >>> let t = "2015/12/12 beer\r\n    Expenses:Gifts  €10\r\n    Assets:Cash\r\n"
--- >>> parseOnly transactionP t
--- >>>
 transactionP :: (Stream s m Char, Monad m, MonadState ParsingState m) => ParsecT s u m Transaction
 transactionP = do
   d <- dateP <?> "date"
