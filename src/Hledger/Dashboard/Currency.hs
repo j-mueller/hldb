@@ -14,8 +14,7 @@ module Hledger.Dashboard.Currency(
   invert,
   toList,
   -- * Parser
-  currencyP,
-  defaultCurrencyP
+  balancingCurrencyP
 ) where
 
 import           Control.Applicative hiding (empty, optional)
@@ -152,7 +151,7 @@ toList = M.toList . view values
 -- Right [(Just "GBP",12 % 1)]
 -- >>> parseOnly currencyP "GBP38.11"
 -- Right [(Just "GBP",3811 % 100)]
-currencyP :: (Monad m, MonadState ParsingState m, Stream s m Char) => ParsecT s u m (Currency (Maybe Text))
+currencyP :: (Monad m, MonadState (ParsingState (Currency Text)) m, Stream s m Char) => ParsecT s u m (Currency (Maybe Text))
 currencyP = pr <?> "currencyP" where
   pr = (try leftSymbolCurrencyP <?> "leftSymbolCurrencyP")
       <|> (try rightSymbolCurrencyP  <?> "rightSymbolCurrencyP")
@@ -174,21 +173,32 @@ currencyP = pr <?> "currencyP" where
     r   <- fmap sgn $ rational
     return $ currency' r $ Nothing
 
--- | Parse a `Currency` with a default currency value
+-- | Parse a `Currency`. If only a number but no symbol is found, the last known
+-- symbol will be used.
 --
 -- >>> parseOnly defaultCurrencyP "-10.0"
 -- Right [("",(-10) % 1)]
-defaultCurrencyP :: (Monad m, MonadState ParsingState m, Stream s m Char) => ParsecT s u m (Currency Text)
-defaultCurrencyP = do
-  c <- gets $ view lastCurrency
+defaultCurrencyP :: (Monad m, MonadState (ParsingState (Currency Text)) m, Stream s m Char) => ParsecT s u m (Currency Text)
+defaultCurrencyP = (gets $ view lastCurrencySymbol) >>= \c -> do
   let applyDefault = mapCurrencies (maybe c id)
   fmap applyDefault currencyP
 
+-- | Parse a `Currency`. If no number is found, the `ParsingState`'s
+-- `runningTotal` will be used to balance the transaction.
+balancingCurrencyP :: (Monad m, MonadState (ParsingState (Currency Text)) m, Stream s m Char) => ParsecT s u m (Currency Text)
+balancingCurrencyP = (gets $ view runningTotal) >>= \old -> do
+  cc  <- option (negateV old) defaultCurrencyP
+  _  <- runningTotal <>= cc
+  return cc
+
 -- | Parse a currency symbol
-currencySymbol :: (Monad m, MonadState ParsingState m, Stream s m Char) => ParsecT s u m Text
-currencySymbol = fmap T.pack p where
-  p = many1 (satisfy cond) <?> "currency symbol"
-  cond c = isPrint c && (not $ isSpace c) && (not $ isDigit c)
+currencySymbol :: (Monad m, MonadState (ParsingState a) m, Stream s m Char) => ParsecT s u m Text
+currencySymbol = do
+  let cond c = isPrint c && (not $ isSpace c) && (not $ isDigit c)
+  let p = many1 (satisfy cond) <?> "currency symbol"
+  result <- fmap T.pack p
+  _  <- lastCurrencySymbol .= result
+  return result
 
 -- | Parse a sign (+/-) to a function,  `id` for optional '+' and `negate`
 --   for '-'
@@ -199,10 +209,7 @@ signP = try m <|> p where
 
 -- | Parse a rational number
 --
--- >>> parseOnly rational "1.1"
--- Right (11 % 10)
--- >>> parseOnly rational "-1"
--- Right ((-1) % 1)
+-- TODO: Move to Utils module?
 rational :: (Stream s m Char, Monad m) => ParsecT s u m Rational
 rational = do
   s <- signP
@@ -210,5 +217,5 @@ rational = do
   _ <- optional $ char '.'
   after <- many digit
   case (before ++ after) of
-    [] -> return 0
+    [] -> fail "rational"
     ds -> either fail (return . s . flip (%) (10^(length after))) (readEither ds :: Either String Integer)

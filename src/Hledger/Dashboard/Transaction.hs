@@ -3,8 +3,11 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Hledger.Dashboard.Transaction(
   Transaction(..),
+  -- * Accessors
   date,
+  description,
   accounts,
+  -- * Parsers
   transactionP
 ) where
 
@@ -20,9 +23,11 @@ import           Text.Parsec.Text
 import           Text.Read (readEither)
 
 import           Hledger.Dashboard.Account (Accounts, accountP)
+import           Hledger.Dashboard.Currency (Currency)
 import           Hledger.Dashboard.ParsingState (
   ParsingState,
-  defaultParsingState)
+  defaultParsingState,
+  runningTotal)
 
 -- | A transaction consists of a date, accounts and some metadata
 data Transaction = Transaction{
@@ -56,19 +61,20 @@ makeLenses ''Transaction
 --     Assets:Cash
 -- @
 --
-transactionP :: (Stream s m Char, Monad m, MonadState ParsingState m) => ParsecT s u m Transaction
+transactionP :: (Stream s m Char, Monad m, MonadState (ParsingState (Currency Text)) m) => ParsecT s u m Transaction
 transactionP = do
   d <- dateP <?> "date"
   _ <- spaces
   description <- fmap T.pack (manyTill anyChar endOfLine) <?> "description"
   accs <- sepEndBy1 (spaces >> accountP) endOfLine <?> "postings"
+  _ <- runningTotal <>= mempty
   return $ Transaction d description $ fold accs
 
 -- | Parse a date
 --
 -- >>> parseOnly dateP "2015/12/12"
 -- Right 2015-12-12
-dateP :: (Stream s m Char, Monad m, MonadState ParsingState m) => ParsecT s u m Day
+dateP :: (Stream s m Char, Monad m, MonadState (ParsingState (Currency Text)) m) => ParsecT s u m Day
 dateP = do
   let toI p = p >>= either fail return . readEither
   year <- toI (count 4 digit) <?> "year"

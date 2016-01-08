@@ -4,12 +4,14 @@
 module Hledger.Dashboard.Account(
   Accounts(..),
   accounts,
+  balance,
   empty,
   account,
   -- * Combinators
   merge,
   -- * Parser
-  accountP
+  accountP,
+  accountNameP
 ) where
 
 import           Control.Applicative hiding (empty)
@@ -23,11 +25,11 @@ import           Data.Monoid
 import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.TreeMap (TreeMap(..), pathTo)
-import           Hledger.Dashboard.Currency (Currency, defaultCurrencyP)
+import           Hledger.Dashboard.Currency (Currency, balancingCurrencyP)
 import           Hledger.Dashboard.ParsingState (
   ParsingState,
   defaultParsingState,
-  lastCurrency
+  runningTotal
   )
 import           Text.Parsec.Text
 import           Text.Parsec hiding ((<|>), many)
@@ -38,8 +40,6 @@ import           Text.Parsec hiding ((<|>), many)
 -- >>> import Data.Text (Text)
 -- >>> import qualified Data.Text as T
 -- >>> import Test.QuickCheck hiding (scale)
--- >>> import Text.Parsec.Text
--- >>> import Text.Parsec.Prim
 -- >>> import Hledger.Dashboard.Currency (Currency(..))
 -- >>> :set -XScopedTypeVariables
 -- >>> :set -XFlexibleInstances
@@ -70,6 +70,10 @@ instance AdditiveGroup Accounts where
 empty :: Accounts
 empty = Accounts mempty
 
+-- | Get the total balance of an `Accounts` value
+balance :: Accounts -> Currency Text
+balance = fold . view accounts
+
 -- | Merge two `Accounts`'
 --
 -- prop> \(a :: Accounts) -> merge a empty == a
@@ -86,18 +90,17 @@ account = Accounts
 -- | Parse an `Accounts` value. Each node in the result will have at most one
 -- child.
 --
-accountP :: (Monad m, Stream s m Char, MonadState ParsingState m) => ParsecT s u m Accounts
+accountP :: (Monad m, Stream s m Char, MonadState (ParsingState (Currency Text)) m) => ParsecT s u m Accounts
 accountP = do
   accName <- accountNameP <?> "account name"
   _       <- spaces <?> "space between account name and currency"
-  curr    <- defaultCurrencyP <?> "currency" -- TODO: Balance transaction if no currency is found
-  return $ Accounts $ pathTo accName curr
+  curr    <- balancingCurrencyP <?> "currency"
+  let res = Accounts $ pathTo accName curr
+  return res
 
--- | Parse the name of an account in a hierarchy.
+-- | Parse the name of an account in a hierarchy. The `:` symbol is used as a
+-- separator. Example: `Expenses:Gifts` results in `["Expenses", "Gifts"]`.
 --
--- >>> let acc = T.pack "Expenses:Cash"
--- >>> evalState (runParserT accountNameP () "" acc) defaultParsingState
--- Right ["Expenses","Cash"]
 accountNameP :: (Monad m, Stream s m Char) => ParsecT s u m [Text]
 accountNameP = fmap (T.splitOn ":") p where
   p = T.pack <$> theChars <?> "account name"

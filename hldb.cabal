@@ -83,6 +83,7 @@ test-suite hldb-hunit
       HUnit,
       mtl,
       text,
+      time,
       parsec,
       test-framework,
       test-framework-hunit,
