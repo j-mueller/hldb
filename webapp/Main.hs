@@ -1,17 +1,28 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Main where
 
-import React.Flux
+import Control.Monad.Cont
 
 import Hledger.Dashboard.Account
 import Hledger.Dashboard.Currency
+import Hledger.UI.Element
+import Hledger.UI.Rendering
 
 import Styles
 
-main :: IO ()
-main = reactRender "hldb" ledgerDashboard ()
+newtype DashboardGUI a = DashboardGUI { _gui :: ContT () IO a }
+  deriving (
+    Functor,
+    Applicative,
+    Monad,
+    MonadCont,
+    MonadIO
+  )
 
-ledgerDashboard :: ReactView ()
-ledgerDashboard = defineView "header" $ \() ->
-  header_ ["id" $= "header"] $ do
-    h1_ "Ledger dashboard"
+e1 = h1_ "Header 1"
+
+main :: IO ()
+main = do
+  render defaultRenderingOptions e1
+  putStrLn "Rendering complete"
