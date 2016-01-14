@@ -52,15 +52,14 @@ diff old new = createNew new $ old^.elemID
 
 -- | Create a tree of elements completely from scratch
 createNew ::  MonadState [Text] m => Elem () -> ElementID -> m ([RenderingAction], Elem ElementID)
-createNew elm i = do
-  newId <- nextId
-  let ch = elm^.children
-  cs <- sequence $ fmap (flip createNew newId) ch
-  let rest = concat $ fmap fst cs
-  let ch' = fmap snd cs
-  let newElem = fmap (const newId) elm & children .~ ch'
-  let p = NewElement i newElem
-  return (p : rest, newElem)
+createNew elm i = fmap tp $ traverse (const nextId) elm where
+  tp = (,) <$> toNewElement i <*> id
+
+toNewElement :: ElementID -> Elem ElementID -> [RenderingAction]
+toNewElement i p = x:xs where
+  x  = NewElement i p
+  i' = p^.elemID
+  xs = concat $ fmap (toNewElement i') $ p^.children
 
 getParentElement :: RenderingOptions -> IO JSRef
 getParentElement = js_getElementById . textToJSString . view targetDivId
