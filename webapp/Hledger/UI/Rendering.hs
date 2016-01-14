@@ -19,8 +19,6 @@ import qualified Data.Map.Strict as M
 import           Data.Monoid
 import           Data.Text (Text)
 import qualified Data.Text as T
-import           GHCJS.Prim (JSRef)
-import           GHCJS.Types (JSString)
 
 import Hledger.UI.Element(
   Elem,
@@ -29,6 +27,7 @@ import Hledger.UI.Element(
   elementType,
   elemID
   )
+import qualified Hledger.UI.FFI as FFI
 
 data RenderingOptions = RenderingOptions{
   _targetDivId :: Text
@@ -42,7 +41,7 @@ type ElementType = Text
 data RenderingAction =
     DeleteElement{ _id :: ElementID }
   | NewElement{ _parentId :: ElementID, _elemDef :: Elem ElementID }
-  | ChangeElement{ _elemdDef :: Elem ElementID }
+  | ChangeElement{ _elemDef :: Elem ElementID }
   deriving (Eq, Ord, Show)
 
 -- | The actual `diff` algorithm - compare the two `Element`s top-down to see
@@ -55,25 +54,23 @@ createNew ::  MonadState [Text] m => Elem () -> ElementID -> m ([RenderingAction
 createNew elm i = fmap tp $ traverse (const nextId) elm where
   tp = (,) <$> toNewElement i <*> id
 
+-- | `RenderingAction`s for a single `Elem ElementID`
 toNewElement :: ElementID -> Elem ElementID -> [RenderingAction]
 toNewElement i p = x:xs where
   x  = NewElement i p
   i' = p^.elemID
   xs = concat $ fmap (toNewElement i') $ p^.children
 
-getParentElement :: RenderingOptions -> IO JSRef
-getParentElement = js_getElementById . textToJSString . view targetDivId
-
 -- | Perform a single `RenderingAction`
-renderAction :: MonadIO m => RenderingAction -> m ()
-renderAction a = liftIO $ case a of
+renderAction :: RenderingAction -> IO ()
+renderAction a = case a of
   NewElement p def -> do
-    elm <- js_createElement $ textToJSString $ def^.elementType
-    t <- js_createTextNode $ textToJSString $ def^.content
-    _ <- js_appendChild elm t
-    b <- js_getElementById $ textToJSString p
-    _ <- js_setId elm $ textToJSString $ view elemID def
-    js_appendChild b elm
+    elm <- FFI.js_createElement $ textToJSString $ def^.elementType
+    t <- FFI.js_createTextNode $ textToJSString $ def^.content
+    _ <- FFI.js_appendChild elm t
+    b <- FFI.js_getElementById $ textToJSString p
+    _ <- FFI.js_setId elm $ textToJSString $ view elemID def
+    FFI.js_appendChild b elm
     putStrLn $ "Rendered " ++ (show def)
   _ -> undefined
 
@@ -82,7 +79,7 @@ render opts original new = evalStateT (renderer go) ids where
   go = do
     let i = opts^.targetDivId
     (actions, newElem) <- maybe (createNew new i) (flip diff new) original
-    _ <- sequence $ fmap renderAction actions
+    _ <- sequence $ fmap (liftIO . renderAction) actions
     return newElem
 
 -- | A list of ids that can be used by hldb elements
@@ -96,21 +93,3 @@ nextId = state f where
 
 newtype Renderer a = Renderer{ renderer :: StateT [Text] IO a }
   deriving (Functor, Applicative, Monad, MonadState [Text], MonadIO)
-
-foreign import javascript unsafe "document.getElementById($1)"
-  js_getElementById :: JSString -> IO JSRef
-
-foreign import javascript unsafe "document.createTextNode($1)"
-  js_createTextNode :: JSString -> IO JSRef
-
-foreign import javascript unsafe "document.body"
-  js_documentBody :: IO JSRef
-
-foreign import javascript unsafe "$1['appendChild']($2)"
-  js_appendChild :: JSRef -> JSRef -> IO ()
-
-foreign import javascript unsafe "document.createElement($1)"
-  js_createElement :: JSString -> IO JSRef
-
-foreign import javascript unsafe "$1['id'] = $2"
-  js_setId :: JSRef -> JSString -> IO ()
