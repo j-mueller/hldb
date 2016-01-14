@@ -2,6 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Main where
 
+import Control.Lens hiding (children)
 import Control.Monad.Cont
 
 import Hledger.Dashboard.Account
@@ -20,9 +21,15 @@ newtype DashboardGUI a = DashboardGUI { _gui :: ContT () IO a }
     MonadIO
   )
 
-e1 = h1_ "Header 1"
+theUI :: Elem ()
+theUI = div_ & children .~ [
+  h1_ "Hello, world",
+  p_ "I am a paragraph, " & children .~ [strong_ "too"],
+  p_ "Of course you are"]
 
 main :: IO ()
 main = do
-  render defaultRenderingOptions e1
+  let options = RenderingOptions "hldb"
+  e <- render options Nothing theUI
   putStrLn "Rendering complete"
+  print e
