@@ -47,8 +47,9 @@ data RenderingAction =
 
 -- | The actual `diff` algorithm - compare the two `Element`s top-down to see
 -- where they differ
-diff :: MonadState [Text] m => Elem ElementID -> Elem () -> m ([RenderingAction], Elem ElementID)
-diff old new = createNew new $ old^.elemID
+-- At the moment it always creates everything from scratch :(
+diff :: MonadState [Text] m => ElementID -> Elem ElementID -> Elem () -> m ([RenderingAction], Elem ElementID)
+diff p old new = createNew new p
 
 -- | Create a tree of elements completely from scratch
 createNew ::  MonadState [Text] m => Elem () -> ElementID -> m ([RenderingAction], Elem ElementID)
@@ -80,7 +81,7 @@ render :: RenderingOptions -> Maybe (Elem ElementID) -> Elem () -> IO (Elem Elem
 render opts original new = evalStateT (renderer go) ids where
   go = do
     let i = opts^.targetDivId
-    (actions, newElem) <- maybe (createNew new i) (flip diff new) original
+    (actions, newElem) <- maybe (createNew new i) (flip (diff i) new) original
     _ <- sequence $ fmap (liftIO . renderAction) actions
     return newElem
 
