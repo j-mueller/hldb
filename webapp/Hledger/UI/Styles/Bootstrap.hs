@@ -9,11 +9,11 @@ import           Prelude hiding (div)
 
 import Hledger.UI.Element
 
-container :: Elem ()
+container :: Elem m ()
 container = div & attributes . at "class" ?~ "container"
 
-row :: Elem ()
+row :: Elem m ()
 row = div & attributes . at "class" ?~ "row"
 
-btnDefault :: Elem ()
+btnDefault :: Elem m ()
 btnDefault = button & attributes . at "class" ?~ "btn btn-default"

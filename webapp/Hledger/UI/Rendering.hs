@@ -40,33 +40,34 @@ makeLenses ''RenderingOptions
 type ElementID = Text
 type ElementType = Text
 
-data RenderingAction =
+data RenderingAction m =
     DeleteElement{ _id :: ElementID }
-  | NewElement{ _parentId :: ElementID, _elemDef :: Elem ElementID }
-  | ChangeElement{ _elemDef :: Elem ElementID }
+  | NewElement{ _parentId :: ElementID, _elemDef :: Elem m ElementID }
+  | ChangeElement{ _elemDef :: Elem m ElementID }
 
 -- | The actual `diff` algorithm - compare the two `Element`s top-down to see
 -- where they differ
 -- At the moment it always creates everything from scratch :(
-diff :: MonadState [Text] m => ElementID -> Elem ElementID -> Elem () -> m ([RenderingAction], Elem ElementID)
+diff :: MonadState [Text] m => ElementID -> Elem n ElementID -> Elem n () -> m ([RenderingAction n], Elem n ElementID)
 diff p old new = createNew new p
 
 -- | Create a tree of elements completely from scratch
-createNew ::  MonadState [Text] m => Elem () -> ElementID -> m ([RenderingAction], Elem ElementID)
+createNew ::  MonadState [Text] m => Elem n () -> ElementID -> m ([RenderingAction n], Elem n ElementID)
 createNew elm i = fmap tp $ traverse (const nextId) elm where
   tp = (,) <$> toNewElement i <*> id
 
 -- | `RenderingAction`s for a single `Elem ElementID`
-toNewElement :: ElementID -> Elem ElementID -> [RenderingAction]
+toNewElement :: ElementID -> Elem n ElementID -> [RenderingAction n]
 toNewElement i p = x:xs where
   x  = NewElement i p
   i' = p^.elemID
   xs = concat $ fmap (toNewElement i') $ p^.children
 
 -- | Perform a single `RenderingAction`
-renderAction :: RenderingAction -> IO ()
+renderAction :: RenderingAction IO -> IO ()
 renderAction a = case a of
   NewElement p def -> do
+    _ <- FFI.js_deleteElementById $ textToJSString $ def^.elemID
     elm <- FFI.js_createElement $ textToJSString $ def^.elementType
     t <- FFI.js_createTextNode $ textToJSString $ def^.content
     _ <- FFI.js_appendChild elm t
@@ -77,7 +78,7 @@ renderAction a = case a of
     FFI.js_appendChild b elm
   _ -> undefined
 
-render :: RenderingOptions -> Maybe (Elem ElementID) -> Elem () -> IO (Elem ElementID)
+render :: RenderingOptions -> Maybe (Elem IO ElementID) -> Elem IO () -> IO (Elem IO ElementID)
 render opts original new = evalStateT (renderer go) ids where
   go = do
     let i = opts^.targetDivId

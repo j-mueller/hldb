@@ -10,6 +10,7 @@ module Hledger.UI.Element where
 
 import           Control.Applicative
 import           Control.Lens hiding (transform)
+import           Control.Monad.Cont
 import           Data.Foldable
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
@@ -18,44 +19,44 @@ import           Data.Text (Text)
 import qualified Data.Text as T
 
 -- | Collection of callbacks of an element
-data Callbacks = Callbacks{
-  _onClick :: Maybe (IO ())
+data Callbacks m = Callbacks{
+  _onClick :: Maybe (m ())
   }
 
 makeLenses ''Callbacks
 
 emptyCb = Callbacks Nothing
 
-data Elem a = Elem{
+data Elem m a = Elem{
   _elementType :: !Text,
   _attributes  :: !(Map Text Text),
   _content     :: !Text,
-  _children    :: [Elem a],
+  _children    :: [Elem m a],
   _elemID      :: !a,
-  _callbacks   :: Callbacks
+  _callbacks   :: Callbacks m
 }
   deriving (Functor, Foldable, Traversable)
 
 makeLenses ''Elem
 
 -- | Create an element with the specified type
-elm :: Text -> Elem ()
+elm :: Text -> Elem m ()
 elm t = Elem t mempty mempty [] () emptyCb
 
-elmWithContent :: Text -> Text -> Elem ()
+elmWithContent :: Text -> Text -> Elem m ()
 elmWithContent t c = elm t & content .~ c
 
-div :: Elem ()
+div :: Elem m ()
 div = elm "div"
 
-h1 :: Text -> Elem ()
+h1 :: Text -> Elem m ()
 h1 = elmWithContent "h1"
 
-p :: Text -> Elem ()
+p :: Text -> Elem m ()
 p = elmWithContent "p"
 
-strong :: Text -> Elem ()
+strong :: Text -> Elem m ()
 strong = elmWithContent "strong"
 
-button :: Elem ()
+button :: Elem m ()
 button = elm "button"
