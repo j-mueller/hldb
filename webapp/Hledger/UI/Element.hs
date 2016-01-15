@@ -16,23 +16,35 @@ import qualified Data.Text as T
 
 data Elem a = Elem{
   _elementType :: !Text,
-  _attributes  :: !(M.Map Text Text),
+  _attributes  :: !(Map Text Text),
   _content     :: !Text,
   _children    :: [Elem a],
-  _elemID      :: !a
+  _elemID      :: !a,
+  _onClick     :: Maybe (IO ())
 }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Functor, Foldable, Traversable)
 
 makeLenses ''Elem
 
-div_ :: Elem ()
-div_ = Elem "div" mempty "" [] ()
 
-h1_ :: Text -> Elem ()
-h1_ t = Elem "h1" mempty t [] ()
+-- | Create an element with the specified type
+elm :: Text -> Elem ()
+elm t = Elem t mempty mempty [] () Nothing
 
-p_ :: Text -> Elem ()
-p_ t = Elem "p" mempty t [] ()
+elmWithContent :: Text -> Text -> Elem ()
+elmWithContent t c = elm t & content .~ c
 
-strong_ :: Text -> Elem ()
-strong_ t = Elem "strong" mempty t [] ()
+div :: Elem ()
+div = elm "div"
+
+h1 :: Text -> Elem ()
+h1 = elmWithContent "h1"
+
+p :: Text -> Elem ()
+p = elmWithContent "p"
+
+strong :: Text -> Elem ()
+strong = elmWithContent "strong"
+
+button :: Elem ()
+button = elm "button"

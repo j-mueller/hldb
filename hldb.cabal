@@ -57,7 +57,8 @@ executable hldb-webapp
   other-modules:
     Hledger.UI.Element,
     Hledger.UI.FFI,
-    Hledger.UI.Rendering
+    Hledger.UI.Rendering,
+    Hledger.UI.Styles.Bootstrap
   if !flag(webapp)
     buildable: False
   else

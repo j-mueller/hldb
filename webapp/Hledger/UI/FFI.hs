@@ -3,6 +3,7 @@
 {- JS FFI functions for manipulating the DOM -}
 module Hledger.UI.FFI where
 
+import           GHCJS.Foreign.Callback
 import           GHCJS.Prim (JSRef)
 import           GHCJS.Types (JSString)
 
@@ -23,3 +24,9 @@ foreign import javascript unsafe "document.createElement($1)"
 
 foreign import javascript unsafe "$1['id'] = $2"
   js_setId :: JSRef -> JSString -> IO ()
+
+foreign import javascript unsafe "$1['setAttribute']($2, $3)"
+  js_setAttribute :: JSRef -> JSString -> JSString -> IO ()
+
+foreign import javascript unsafe "$1['onclick']=$2"
+  js_setOnClick :: JSRef -> Callback (JSRef -> IO ()) -> IO ()

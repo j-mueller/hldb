@@ -1,8 +1,6 @@
 -- | Rendering of HTML elements
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ForeignFunctionInterface #-}
-{-# LANGUAGE JavaScriptFFI #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveFoldable #-}
@@ -19,13 +17,16 @@ import qualified Data.Map.Strict as M
 import           Data.Monoid
 import           Data.Text (Text)
 import qualified Data.Text as T
+import           GHCJS.Foreign.Callback (asyncCallback1)
 
 import Hledger.UI.Element(
   Elem,
+  attributes,
   children,
   content,
   elementType,
-  elemID
+  elemID,
+  onClick
   )
 import qualified Hledger.UI.FFI as FFI
 
@@ -42,7 +43,6 @@ data RenderingAction =
     DeleteElement{ _id :: ElementID }
   | NewElement{ _parentId :: ElementID, _elemDef :: Elem ElementID }
   | ChangeElement{ _elemDef :: Elem ElementID }
-  deriving (Eq, Ord, Show)
 
 -- | The actual `diff` algorithm - compare the two `Element`s top-down to see
 -- where they differ
@@ -68,10 +68,11 @@ renderAction a = case a of
     elm <- FFI.js_createElement $ textToJSString $ def^.elementType
     t <- FFI.js_createTextNode $ textToJSString $ def^.content
     _ <- FFI.js_appendChild elm t
+    _ <- sequence $ fmap (uncurry $ FFI.js_setAttribute elm) $ fmap ((,) <$> textToJSString . fst <*> textToJSString . snd) $ M.toList $ def^.attributes
     b <- FFI.js_getElementById $ textToJSString p
     _ <- FFI.js_setId elm $ textToJSString $ view elemID def
+    _ <- maybe (return ()) (\c -> asyncCallback1 (const c) >>= FFI.js_setOnClick elm) $ def^.onClick
     FFI.js_appendChild b elm
-    putStrLn $ "Rendered " ++ (show def)
   _ -> undefined
 
 render :: RenderingOptions -> Maybe (Elem ElementID) -> Elem () -> IO (Elem ElementID)

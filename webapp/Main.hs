@@ -4,13 +4,13 @@ module Main where
 
 import Control.Lens hiding (children)
 import Control.Monad.Cont
+import Prelude hiding (div)
 
 import Hledger.Dashboard.Account
 import Hledger.Dashboard.Currency
 import Hledger.UI.Element
 import Hledger.UI.Rendering
-
-import Styles
+import Hledger.UI.Styles.Bootstrap
 
 newtype DashboardGUI a = DashboardGUI { _gui :: ContT () IO a }
   deriving (
@@ -22,14 +22,18 @@ newtype DashboardGUI a = DashboardGUI { _gui :: ContT () IO a }
   )
 
 theUI :: Elem ()
-theUI = div_ & children .~ [
-  h1_ "Hello, world",
-  p_ "I am a paragraph, " & children .~ [strong_ "too"],
-  p_ "Of course you are"]
+theUI = container & children .~ [
+  row & children .~ [
+    h1 "Hello, world",
+    p "I am a paragraph, " & children .~ [strong "too"],
+    p "Of course you are",
+    btnDefault &
+      content .~ "Submit" &
+      onClick .~ (Just $ putStrLn "Click")]
+  ]
 
 main :: IO ()
 main = do
   let options = RenderingOptions "hldb"
   e <- render options Nothing theUI
   putStrLn "Rendering complete"
-  print e
