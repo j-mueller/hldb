@@ -22,6 +22,7 @@ import           GHCJS.Foreign.Callback (asyncCallback1)
 import Hledger.UI.Element(
   Elem,
   attributes,
+  callbacks,
   children,
   content,
   elementType,
@@ -71,7 +72,7 @@ renderAction a = case a of
     _ <- sequence $ fmap (uncurry $ FFI.js_setAttribute elm) $ fmap ((,) <$> textToJSString . fst <*> textToJSString . snd) $ M.toList $ def^.attributes
     b <- FFI.js_getElementById $ textToJSString p
     _ <- FFI.js_setId elm $ textToJSString $ view elemID def
-    _ <- maybe (return ()) (\c -> asyncCallback1 (const c) >>= FFI.js_setOnClick elm) $ def^.onClick
+    _ <- maybe (return ()) (\c -> asyncCallback1 (const c) >>= FFI.js_setOnClick elm) $ def^.callbacks.onClick
     FFI.js_appendChild b elm
   _ -> undefined
 

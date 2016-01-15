@@ -2,7 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Main where
 
-import Control.Lens hiding (children)
+import Control.Lens hiding (children, transform)
 import Control.Monad.Cont
 import Prelude hiding (div)
 
@@ -29,7 +29,7 @@ theUI = container & children .~ [
     p "Of course you are",
     btnDefault &
       content .~ "Submit" &
-      onClick .~ (Just $ putStrLn "Click")]
+      callbacks . onClick ?~ putStrLn "Click"]
   ]
 
 main :: IO ()
