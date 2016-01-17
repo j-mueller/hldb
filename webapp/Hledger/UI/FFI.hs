@@ -31,5 +31,5 @@ foreign import javascript unsafe "$1['setAttribute']($2, $3)"
 foreign import javascript unsafe "$1['onclick']=$2"
   js_setOnClick :: JSRef -> Callback (JSRef -> IO ()) -> IO ()
 
-foreign import javascript unsafe "function(){e=document.getElementById($1);if(e!=null)e.parent.removeChild(e)}()"
+foreign import javascript unsafe "function(){e=document.getElementById($1);if(e!=null && e.parentElement!=null)e.parentElement.removeChild(e)}()"
   js_deleteElementById :: JSString -> IO ()
