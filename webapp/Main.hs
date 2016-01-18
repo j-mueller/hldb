@@ -16,33 +16,27 @@ import Hledger.UI.Element
 import Hledger.UI.Rendering
 import Hledger.UI.Styles.Bootstrap
 
--- UI of state s should be MonadWriter (Elem ()) m => s -> m s
-
-type View a = forall f. Functor f => a -> ((a -> a) -> f ()) -> Elem f ()
+type View a = a -> Elem (a -> a) ()
 
 theUI :: View Int
-theUI i f = container & children .~ [
+theUI i = container & children .~ [
     row & children .~ [
       h1 "Hello, world",
       p "I am a paragraph, " & children .~ [strong "too"],
       p ("I have been clicked " <> (T.pack $ show i) <> " times"),
       btnDefault &
         content .~ "Submit" &
-        callbacks . onClick ?~ (fmap (const ()) $ f $ \_ -> succ i)]
+        callbacks . onClick ?~ succ]
     ]
 
 renderUI :: RenderingOptions -> View a -> a -> IO ()
-renderUI opts f s = do
-  putStrLn "Rendering UI"
-  let cb g = renderUI opts f (g s)
-  let v = f s cb -- v :: Elem IO ()
-  render opts Nothing v
-  return ()
-
+renderUI opts view state = render ioActions where
+  newView = view state
+  (actions, newOptions) = prepare opts newView
+  cb = renderUI newOptions view -- cb :: a -> IO ()
+  ioActions = fmap (fmap (mapCallbacks $ \f -> cb $ f state)) actions
 
 main :: IO ()
 main = do
-  let options = RenderingOptions "hldb"
-  -- e <- render options Nothing $ theUI 10
-  -- putStrLn "Rendering complete"
+  let options = renderingOptions "hldb"
   renderUI options theUI 0
