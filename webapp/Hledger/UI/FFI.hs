@@ -33,3 +33,19 @@ foreign import javascript unsafe "$1['onclick']=$2"
 
 foreign import javascript unsafe "function(){e=document.getElementById($1);if(e!=null && e.parentElement!=null)e.parentElement.removeChild(e)}()"
   js_deleteElementById :: JSString -> IO ()
+
+foreign import javascript unsafe "document.getElementById($1)['removeAttribute']($2)"
+  js_removeAttributeById :: JSString -> JSString -> IO ()
+
+foreign import javascript unsafe "document.getElementById($1)['setAttribute']($2, $3)"
+  js_setAttributeById :: JSString -> JSString -> JSString -> IO ()
+
+foreign import javascript unsafe "document.getElementById($1)['$2']=null"
+  js_RemoveCallbackById :: JSString -> JSString -> IO ()
+
+foreign import javascript unsafe "document.getElementById($1)['textContent']=$2"
+  js_setTextContent :: JSString -> JSString -> IO ()
+
+-- TODO: support callbacks with more than 0 arguments
+foreign import javascript unsafe "document.getElementById($1)['$2']=$3"
+  js_setCallbackById :: JSString -> JSString -> Callback (IO ()) -> IO ()

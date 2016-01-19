@@ -34,7 +34,7 @@ renderUI opts view state = render ioActions where
   newView = view state
   (actions, newOptions) = prepare opts newView
   cb = renderUI newOptions view -- cb :: a -> IO ()
-  ioActions = fmap (fmap (mapCallbacks $ \f -> cb $ f state)) actions
+  ioActions = fmap (mapCbs $ \f -> cb $ f state) actions
 
 main :: IO ()
 main = do
