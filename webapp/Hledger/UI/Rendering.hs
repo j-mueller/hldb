@@ -180,7 +180,9 @@ renderAction a = case a of
 
 -- | Perform a bunch of renderingActions
 render :: [RenderingAction (IO ()) (Elem (IO ()) ElementID)] -> IO ()
-render = fmap (const ()) . sequence . fmap renderAction
+render = fmap (const ()) . sequence . fmap renderAction . filter (not . isNop) where
+  isNop NoAction = True
+  isNop _        = False
 
 -- | Prepare a new version of the view (Elem ca ()) to be rendered, using the
 -- last known state from the RenderingOptions as a base line.
