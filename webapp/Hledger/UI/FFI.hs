@@ -40,12 +40,12 @@ foreign import javascript unsafe "document.getElementById($1)['removeAttribute']
 foreign import javascript unsafe "document.getElementById($1)['setAttribute']($2, $3)"
   js_setAttributeById :: JSString -> JSString -> JSString -> IO ()
 
-foreign import javascript unsafe "document.getElementById($1)['$2']=null"
+foreign import javascript unsafe "document.getElementById($1)[$2]=null"
   js_RemoveCallbackById :: JSString -> JSString -> IO ()
 
 foreign import javascript unsafe "document.getElementById($1)['textContent']=$2"
   js_setTextContent :: JSString -> JSString -> IO ()
 
 -- TODO: support callbacks with more than 0 arguments
-foreign import javascript unsafe "document.getElementById($1)['$2']=$3"
+foreign import javascript unsafe "document.getElementById($1)[$2]=$3"
   js_setCallbackById :: JSString -> JSString -> Callback (IO ()) -> IO ()

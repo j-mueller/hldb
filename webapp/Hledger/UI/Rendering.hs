@@ -162,6 +162,7 @@ createNew i p = x:xs where
 renderAction :: RenderingAction (IO ()) (Elem (IO ()) ElementID) -> IO ()
 renderAction a = case a of
   NewElement p def -> do
+    _ <- putStrLn ("Creating new element with parent: " <> show p)
     elm <- FFI.js_createElement $ textToJSString $ def^.elementType
     t <- FFI.js_createTextNode $ textToJSString $ def^.content
     _ <- FFI.js_appendChild elm t
@@ -170,12 +171,20 @@ renderAction a = case a of
     _ <- FFI.js_setId elm $ textToJSString $ view elemID def
     _ <- maybe (return ()) (\c -> asyncCallback1 (const c) >>= FFI.js_setOnClick elm) $ def^.callbacks.onClick
     FFI.js_appendChild b elm
-  DeleteElement i -> FFI.js_deleteElementById $ textToJSString i
+  DeleteElement i -> do
+    _ <- putStrLn $ "Deleting element: " <> show i
+    FFI.js_deleteElementById $ textToJSString i
   RemoveAttribute i a -> FFI.js_removeAttributeById (textToJSString i) $ textToJSString a
   NoAction -> return ()
-  RemoveCallback i n -> FFI.js_RemoveCallbackById (textToJSString i) $ textToJSString n
-  SetCallback i n c -> (asyncCallback c) >>= FFI.js_setCallbackById (textToJSString i) (textToJSString n)
-  SetTextContent i t -> FFI.js_setTextContent (textToJSString i) (textToJSString t)
+  RemoveCallback i n -> do
+    _ <- putStrLn $ "Removing callback " ++ (show n) ++ " from " ++ (show i)
+    FFI.js_RemoveCallbackById (textToJSString i) $ textToJSString n
+  SetCallback i n c -> do
+    _ <- putStrLn $ "Changing callback " ++ (show n) ++ " of " ++ (show i)
+    (asyncCallback c) >>= FFI.js_setCallbackById (textToJSString i) (textToJSString n)
+  SetTextContent i t -> do
+    _ <- putStrLn $ "Set text content of " ++ (show i) ++ " to " ++ (show t)
+    FFI.js_setTextContent (textToJSString i) (textToJSString t)
   SetAttribute i a v -> FFI.js_setAttributeById (textToJSString i) (textToJSString a) (textToJSString v)
 
 -- | Perform a bunch of renderingActions
