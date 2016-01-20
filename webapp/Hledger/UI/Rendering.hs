@@ -15,6 +15,7 @@ import           Control.Monad.State
 import           Data.JSString.Text (textToJSString)
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
+import           Data.Maybe (listToMaybe)
 import           Data.Monoid
 import           Data.Text (Text)
 import qualified Data.Text as T
@@ -50,9 +51,14 @@ renderingOptions :: Text -> RenderingOptions
 renderingOptions = RenderingOptions ids Nothing where
   ids = fmap ((<>) "hldb-" . T.pack . show) [1..] -- infinite list of IDs
 
+-- | Where to insert an element - before another elem, or as (last) child of an
+-- elem
+data InsertWhere = InsertBefore Text | InsertAsChildOf Text | InsertAfter Text
+  deriving Show
+
 data RenderingAction c e =
     DeleteElement{ _id :: ElementID }
-  | NewElement{ _parentId :: ElementID, _elemDef :: e }
+  | NewElement{ _insertWhere :: InsertWhere, _elemDef :: e }
   | SetTextContent{ _id :: ElementID, _text :: Text }
   | RemoveAttribute{ _id :: ElementID, _attribute :: Text }
   | SetAttribute{ _id :: ElementID, _attribute :: Text, _attrValue :: Text }
@@ -75,7 +81,7 @@ mapCbs f = mapCb . fmap (mapCallbacks f) where
 -- | The actual `diff` algorithm - compare the two `Element`s top-down to see
 -- where they differ
 diff :: MonadState RenderingOptions m =>
-  ElementID -> -- ^ ID of parent element (for inserting new elements)
+  InsertWhere -> -- ^ ID of parent element (for inserting new elements)
   Elem () ElementID -> -- ^ previous elem (diff baseline)
   Elem cb () -> -- ^ new elem
   m [RenderingAction cb (Elem cb ElementID)]
@@ -89,15 +95,15 @@ diff p old new = do
 
 -- | Actual implementation of diff.
 diff' ::
-  ElementID ->
+  InsertWhere ->
   Elem () ElementID ->
   Elem cb ElementID ->
   ([RenderingAction cb (Elem cb ElementID)], Map ElementID ElementID)
-diff' p old new
+diff' i old new
   | old^.elementType == new^.elementType = diffSameType old new
   | otherwise = (del:rest, M.empty) where
     del  = DeleteElement $ old^.elemID
-    rest = createNew p new
+    rest = createNew i new
 
 -- | Generate actions for changing an existing element into a new one, assuming
 -- both have the same type.
@@ -118,18 +124,20 @@ diffSameType old new = (contAct <> attrAct <> cbAct <> childAct, subst <> childS
   -- 4. Update the element's callbacks
   cbAct = changeCallbacks (old^.callbacks) (new^.callbacks) targetId
   -- 5. Update the element's children
-  (childAct, childSubst) = diffChildren targetId (old^.children) (new^.children)
+  firstChildLocation = maybe (InsertAsChildOf targetId) (InsertBefore) $ listToMaybe $ fmap (view elemID) $ old^.children
+  (childAct, childSubst) = diffChildren firstChildLocation (old^.children) (new^.children)
 
 diffChildren ::
-  ElementID ->
+  InsertWhere ->
   [Elem () ElementID] ->
   [Elem cb ElementID] ->
   ([RenderingAction cb (Elem cb ElementID)], Map ElementID ElementID)
-diffChildren pId [] xs = (concat $ fmap (createNew pId) xs, M.empty)
+diffChildren w [] xs   = (concat $ fmap (createNew w) xs, M.empty)
 diffChildren _   ys [] = (fmap (DeleteElement . view elemID) ys, M.empty)
-diffChildren pId (x:xs) (y:ys) = (firstDiff <> restDiffs, firstSubst <> restSubst) where
-  (firstDiff, firstSubst) = diff' pId x y
-  (restDiffs, restSubst ) = diffChildren pId xs ys
+diffChildren w (x:xs) (y:ys) = (firstDiff <> restDiffs, firstSubst <> restSubst) where
+  (firstDiff, firstSubst) = diff' w x y
+  (restDiffs, restSubst ) = diffChildren newPos xs ys
+  newPos = InsertAfter $ maybe (y^.elemID) id $ M.lookup (y^.elemID) firstSubst
 
 changeCallbacks :: Callbacks ca -> Callbacks cb -> ElementID -> [RenderingAction cb a]
 changeCallbacks old new i = [onclick] where
@@ -152,10 +160,10 @@ changeAttributes old new i = actions where
   mapNew = M.mapWithKey $ \k v -> SetAttribute i k v
 
 -- | `RenderingAction`s for a single `Elem ElementID`
-createNew :: ElementID -> Elem cb ElementID -> [RenderingAction cb (Elem cb ElementID)]
+createNew :: InsertWhere -> Elem cb ElementID -> [RenderingAction cb (Elem cb ElementID)]
 createNew i p = x:xs where
   x  = NewElement i p
-  i' = p^.elemID
+  i' = InsertAsChildOf $ p^.elemID
   xs = concat $ fmap (createNew i') $ p^.children
 
 -- | Perform a single `RenderingAction`
@@ -167,10 +175,14 @@ renderAction a = case a of
     t <- FFI.js_createTextNode $ textToJSString $ def^.content
     _ <- FFI.js_appendChild elm t
     _ <- sequence $ fmap (uncurry $ FFI.js_setAttribute elm) $ fmap ((,) <$> textToJSString . fst <*> textToJSString . snd) $ M.toList $ def^.attributes
-    b <- FFI.js_getElementById $ textToJSString p
     _ <- FFI.js_setId elm $ textToJSString $ view elemID def
     _ <- maybe (return ()) (\c -> asyncCallback1 (const c) >>= FFI.js_setOnClick elm) $ def^.callbacks.onClick
-    FFI.js_appendChild b elm
+    case p of
+      InsertBefore e -> FFI.js_insertBefore elm (textToJSString e)
+      InsertAfter e  -> FFI.js_insertAfter  elm (textToJSString e)
+      InsertAsChildOf e -> do
+        e' <- FFI.js_getElementById $ textToJSString e
+        FFI.js_appendChild e' elm
   DeleteElement i -> do
     _ <- putStrLn $ "Deleting element: " <> show i
     FFI.js_deleteElementById $ textToJSString i
@@ -198,7 +210,7 @@ render = fmap (const ()) . sequence . fmap renderAction . filter (not . isNop) w
 prepare :: RenderingOptions ->  Elem ca () -> ([RenderingAction ca (Elem ca ElementID)], RenderingOptions)
 prepare opts new = runState go opts where
   go       = maybe makeNew (flip (diff target) new) old
-  target   = opts^.targetDivId
+  target   = InsertAsChildOf $ opts^.targetDivId
   old      = opts^.lastView
   makeNew  = do
     newWithIds <- traverse (const nextId) new

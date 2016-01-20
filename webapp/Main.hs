@@ -23,7 +23,9 @@ theUI i = container & children .~ [
     row & children .~ [
       h1 "Hello, world",
       p "I am a paragraph, " & children .~ [strong "too"],
-      p ("I have been clicked " <> (T.pack $ show i) <> " times"),
+      if (i <= 5)
+      then p ("I have been clicked " <> (T.pack $ show i) <> " times")
+      else div & content .~ "DIV",
       btnDefault &
         content .~ "Submit" &
         callbacks . onClick ?~ succ]

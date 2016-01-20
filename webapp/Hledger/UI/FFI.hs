@@ -3,9 +3,9 @@
 {- JS FFI functions for manipulating the DOM -}
 module Hledger.UI.FFI where
 
-import           GHCJS.Foreign.Callback
-import           GHCJS.Prim (JSRef)
-import           GHCJS.Types (JSString)
+import GHCJS.Foreign.Callback
+import GHCJS.Prim
+import GHCJS.Types (JSString)
 
 foreign import javascript unsafe "document.getElementById($1)"
   js_getElementById :: JSString -> IO JSRef
@@ -18,6 +18,12 @@ foreign import javascript unsafe "document.body"
 
 foreign import javascript unsafe "$1['appendChild']($2)"
   js_appendChild :: JSRef -> JSRef -> IO ()
+
+foreign import javascript unsafe "$($1).insertBefore(document.getElementById($2))"
+  js_insertBefore :: JSRef -> JSString -> IO ()
+
+foreign import javascript unsafe "$($1).insertAfter(document.getElementById($2))"
+  js_insertAfter :: JSRef -> JSString -> IO ()
 
 foreign import javascript unsafe "document.createElement($1)"
   js_createElement :: JSString -> IO JSRef
