@@ -61,6 +61,9 @@ div = elm "div"
 h1 :: Text -> Elem cb ()
 h1 = elmWithContent "h1"
 
+h2 :: Text -> Elem cb ()
+h2 = elmWithContent "h2"
+
 p :: Text -> Elem cb ()
 p = elmWithContent "p"
 
