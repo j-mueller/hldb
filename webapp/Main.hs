@@ -5,10 +5,10 @@
 module Main where
 
 import Control.Lens hiding (children, transform)
-import Control.Monad.Fix
+import Data.Functor.Identity(Identity, runIdentity)
 import Data.Monoid
-import Prelude hiding (div)
 import qualified Data.Text as T
+import Prelude hiding (div)
 
 import Hledger.Dashboard.Account
 import Hledger.Dashboard.Currency
@@ -16,9 +16,9 @@ import Hledger.UI.Element
 import Hledger.UI.Rendering
 import Hledger.UI.Styles.Bootstrap
 
-type View a = a -> Elem (a -> a) ()
+type View m a = a -> Elem (a -> m a) ()
 
-theUI :: View Int
+theUI :: View Identity Int
 theUI i = container & children .~ [
     row & children .~ [
       h1 "Hello, world",
@@ -28,17 +28,18 @@ theUI i = container & children .~ [
       else div & content .~ "DIV",
       btnDefault &
         content .~ "Submit" &
-        callbacks . onClick ?~ succ]
+        callbacks . onClick ?~ return . succ]
     ]
 
-renderUI :: RenderingOptions -> View a -> a -> IO ()
-renderUI opts view state = render ioActions where
+renderUI :: RenderingOptions -> View m a -> (m a -> IO a) -> a -> IO ()
+renderUI opts view interp state = render ioActions where
   newView = view state
   (actions, newOptions) = prepare opts newView
-  cb = renderUI newOptions view -- cb :: a -> IO ()
-  ioActions = fmap (mapCbs $ \f -> cb $ f state) actions
+  updateUI = renderUI newOptions view interp -- updateUI :: a -> IO ()
+  ioActions = fmap (mapCbs $ \f -> interp (f state) >>= updateUI) actions
 
 main :: IO ()
 main = do
   let options = renderingOptions "hldb"
-  renderUI options theUI 0
+  let interp = return . runIdentity
+  renderUI options theUI interp 0

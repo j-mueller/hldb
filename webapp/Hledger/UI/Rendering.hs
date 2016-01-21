@@ -7,7 +7,33 @@
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RankNTypes #-}
-module Hledger.UI.Rendering where
+module Hledger.UI.Rendering(
+  -- * Main API
+  prepare,
+  render,
+  -- * Options
+  RenderingOptions(..),
+  renderingOptions,
+  remainingIDs,
+  lastView,
+  targetDivId,
+  -- * Internals
+  ElementID,
+  ElementType,
+  VirtualElem,
+  InsertWhere(..),
+  RenderingAction(..),
+  mapCbs,
+  diff,
+  diff',
+  diffSameType,
+  diffChildren,
+  changeCallbacks,
+  changeAttributes,
+  createNew,
+  renderAction,
+  nextId
+) where
 
 import           Control.Applicative
 import           Control.Lens hiding (children)
@@ -46,6 +72,26 @@ data RenderingOptions = RenderingOptions{
 }
 
 makeLenses ''RenderingOptions
+
+-- | Perform a bunch of renderingActions
+render :: [RenderingAction (IO ()) (Elem (IO ()) ElementID)] -> IO ()
+render = fmap (const ()) . sequence . fmap renderAction . filter (not . isNop) where
+  isNop NoAction = True
+  isNop _        = False
+
+-- | Prepare a new version of the view (Elem ca ()) to be rendered, using the
+-- last known state from the RenderingOptions as a base line.
+prepare :: RenderingOptions ->  Elem ca () -> ([RenderingAction ca (Elem ca ElementID)], RenderingOptions)
+prepare opts new = runState go opts where
+  go       = maybe makeNew (flip (diff target) new) old
+  target   = InsertAsChildOf $ opts^.targetDivId
+  old      = opts^.lastView
+  makeNew  = do
+    newWithIds <- traverse (const nextId) new
+    let lastView' = mapCallbacks (const ()) newWithIds
+    lastView ?= lastView'
+    let result = createNew target newWithIds
+    return result
 
 renderingOptions :: Text -> RenderingOptions
 renderingOptions = RenderingOptions ids Nothing where
@@ -198,26 +244,6 @@ renderAction a = case a of
     _ <- putStrLn $ "Set text content of " ++ (show i) ++ " to " ++ (show t)
     FFI.js_setTextContent (textToJSString i) (textToJSString t)
   SetAttribute i a v -> FFI.js_setAttributeById (textToJSString i) (textToJSString a) (textToJSString v)
-
--- | Perform a bunch of renderingActions
-render :: [RenderingAction (IO ()) (Elem (IO ()) ElementID)] -> IO ()
-render = fmap (const ()) . sequence . fmap renderAction . filter (not . isNop) where
-  isNop NoAction = True
-  isNop _        = False
-
--- | Prepare a new version of the view (Elem ca ()) to be rendered, using the
--- last known state from the RenderingOptions as a base line.
-prepare :: RenderingOptions ->  Elem ca () -> ([RenderingAction ca (Elem ca ElementID)], RenderingOptions)
-prepare opts new = runState go opts where
-  go       = maybe makeNew (flip (diff target) new) old
-  target   = InsertAsChildOf $ opts^.targetDivId
-  old      = opts^.lastView
-  makeNew  = do
-    newWithIds <- traverse (const nextId) new
-    let lastView' = mapCallbacks (const ()) newWithIds
-    lastView ?= lastView'
-    let result = createNew target newWithIds
-    return result
 
 -- | Get a new id
 nextId :: MonadState RenderingOptions m => m Text
