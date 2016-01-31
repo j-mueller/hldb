@@ -1,17 +1,22 @@
 # For more information, see: https://github.com/commercialhaskell/stack/blob/release/doc/yaml_configuration.md
 
 # Specifies the GHC version and set of packages available (e.g., lts-3.5, nightly-2015-09-21, ghc-7.10.2)
-resolver: nightly-2016-01-07
+resolver: lts-3.22
 
 # Local packages, usually specified by relative directory name
 packages:
 - '.'
+- location:
+    git: https://github.com/j-mueller/virtual-hom
+    commit: 9f6bef632f25b14a1ae2d09700d225399b427540
 
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
 extra-deps: []
 
 # Override default flag values for local packages and extra-deps
-flags: {}
+flags:
+  hldb:
+    webapp: true
 
 # Extra package databases containing global packages
 extra-package-dbs: []
@@ -30,10 +35,10 @@ extra-package-dbs: []
 # Extra directories used by stack for building
 # extra-include-dirs: [/path/to/dir]
 # extra-lib-dirs: [/path/to/dir]
-compiler: ghcjs-0.2.0.20151029_ghc-7.10.2
+compiler: ghcjs-0.2.0.20151230.3_ghc-7.10.2
 compiler-check: match-exact
 setup-info:
-  ghcjs:
-      source:
-            ghcjs-0.2.0.20151029_ghc-7.10.2:
-                    url: "https://github.com/nrolland/ghcjs/releases/download/v0.2.0.20151029/ghcjs-0.2.0.20151029.tar.gz"
+ ghcjs:
+  source:
+   ghcjs-0.2.0.20151230.3_ghc-7.10.2:
+    url: "https://github.com/nrolland/ghcjs/releases/download/v.0.2.0.20151230.3/ghcjs-0.2.0.20151230.3.tar.gz"

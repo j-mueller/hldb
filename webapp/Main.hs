@@ -9,14 +9,12 @@ import Data.Functor.Identity(Identity, runIdentity)
 import Data.Monoid
 import qualified Data.Text as T
 import Prelude hiding (div)
+import VirtualHom.Element
+import VirtualHom.View
+import VirtualHom.Html
+import VirtualHom.Rendering
 
-import Hledger.Dashboard.Account
-import Hledger.Dashboard.Currency
-import Hledger.UI.Element
-import Hledger.UI.Rendering
-import Hledger.UI.Styles.Bootstrap
-
-type View m a = a -> Elem (a -> m a) ()
+import Hledger.App
 
 theUI :: View Identity Int
 theUI i = container & children .~ [
@@ -30,13 +28,6 @@ theUI i = container & children .~ [
         content .~ "Submit" &
         callbacks . onClick ?~ return . succ]
     ]
-
-renderUI :: RenderingOptions -> View m a -> (m a -> IO a) -> a -> IO ()
-renderUI opts view interp state = render ioActions where
-  newView = view state
-  (actions, newOptions) = prepare opts newView
-  updateUI = renderUI newOptions view interp -- updateUI :: a -> IO ()
-  ioActions = fmap (mapCbs $ \f -> interp (f state) >>= updateUI) actions
 
 main :: IO ()
 main = do

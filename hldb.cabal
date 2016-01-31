@@ -70,6 +70,7 @@ executable hldb-webapp
                        , lens
                        , mtl
                        , text
+                       , virtual-hom
   default-language:    Haskell2010
 
 test-suite hldb-doctests
