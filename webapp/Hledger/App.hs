@@ -5,7 +5,7 @@ module Hledger.App where
 import Control.Lens
 import Data.Text (Text)
 
-import Hledger.Dashboard.Journal(
+import Data.Accounting.Journal(
   ReportingInterval(..),
   Journal,
   firstDay,

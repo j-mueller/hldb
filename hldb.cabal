@@ -28,12 +28,12 @@ flag webapp
 library
   hs-source-dirs:      src
   exposed-modules:
-    Data.TreeMap,
-    Hledger.Dashboard.Account,
-    Hledger.Dashboard.Currency,
-    Hledger.Dashboard.Journal,
-    Hledger.Dashboard.ParsingState,
-    Hledger.Dashboard.Transaction
+    Data.Accounting.Account,
+    Data.Accounting.Currency,
+    Data.Accounting.Journal,
+    Data.Accounting.ParsingState,
+    Data.Accounting.Transaction,
+    Data.TreeMap
   build-depends:
     base >= 4.7 && < 5,
     contravariant,

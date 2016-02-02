@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
-module Hledger.Dashboard.Account(
+module Data.Accounting.Account(
   Accounts(..),
   accounts,
   balance,
@@ -25,8 +25,8 @@ import           Data.Monoid
 import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.TreeMap (TreeMap(..), pathTo)
-import           Hledger.Dashboard.Currency (Currency, balancingCurrencyP)
-import           Hledger.Dashboard.ParsingState (
+import           Data.Accounting.Currency (Currency, balancingCurrencyP)
+import           Data.Accounting.ParsingState (
   ParsingState,
   defaultParsingState,
   runningTotal
@@ -40,7 +40,7 @@ import           Text.Parsec hiding ((<|>), many)
 -- >>> import Data.Text (Text)
 -- >>> import qualified Data.Text as T
 -- >>> import Test.QuickCheck hiding (scale)
--- >>> import Hledger.Dashboard.Currency (Currency(..))
+-- >>> import Data.Accounting.Currency (Currency(..))
 -- >>> :set -XScopedTypeVariables
 -- >>> :set -XFlexibleInstances
 -- >>> :set -XFlexibleContexts

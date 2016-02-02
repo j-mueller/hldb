@@ -2,7 +2,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
-module Hledger.Dashboard.Currency(
+module Data.Accounting.Currency(
   Currency(..),
   -- * Constructors
   empty,
@@ -34,7 +34,7 @@ import           Text.Parsec.Combinator
 import           Text.Parsec.Text
 import           Text.Read (readEither)
 
-import Hledger.Dashboard.ParsingState
+import Data.Accounting.ParsingState
 
 -- | Values with currencies.
 newtype Currency a = Currency { _values :: M.Map a Rational }

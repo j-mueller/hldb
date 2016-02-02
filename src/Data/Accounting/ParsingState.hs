@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
-module Hledger.Dashboard.ParsingState(
+module Data.Accounting.ParsingState(
   ParsingState,
   defaultParsingState,
   -- * Lenses

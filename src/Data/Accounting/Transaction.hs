@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
-module Hledger.Dashboard.Transaction(
+module Data.Accounting.Transaction(
   Transaction(..),
   -- * Accessors
   date,
@@ -22,9 +22,9 @@ import           Text.Parsec
 import           Text.Parsec.Text
 import           Text.Read (readEither)
 
-import           Hledger.Dashboard.Account (Accounts, accountP)
-import           Hledger.Dashboard.Currency (Currency)
-import           Hledger.Dashboard.ParsingState (
+import           Data.Accounting.Account (Accounts, accountP)
+import           Data.Accounting.Currency (Currency)
+import           Data.Accounting.ParsingState (
   ParsingState,
   defaultParsingState,
   runningTotal)

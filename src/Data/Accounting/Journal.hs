@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
-module Hledger.Dashboard.Journal where
+module Data.Accounting.Journal where
 
 import           Control.Lens hiding ((...), singular)
 import           Data.AdditiveGroup
@@ -15,8 +15,8 @@ import           Data.Time.Calendar (
   fromGregorian,
   toGregorian)
 import           Data.Time.Calendar.WeekDate (fromWeekDate, toWeekDate)
-import           Hledger.Dashboard.Account (Accounts)
-import           Hledger.Dashboard.Currency (Currency)
+import           Data.Accounting.Account (Accounts)
+import           Data.Accounting.Currency (Currency)
 import           Numeric.Interval
 
 data ReportingInterval = Day | Week | Month | Year
