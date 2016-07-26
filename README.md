@@ -13,7 +13,7 @@ stack build --stack-yaml stack-ghcjs.yaml
 You may need to follow stack's instructions to install GHCJS.
 
 ```
-cabal install --ghcjs -fwebapp
+stack install --stack-yaml stack-ghcjs.yaml
 ```
 
 # License

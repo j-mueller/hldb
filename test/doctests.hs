@@ -6,6 +6,6 @@ main :: IO ()
 main = doctest [
   "-isrc",
   "src/Data/TreeMap.hs",
-  "src/Hledger/Dashboard/Account.hs",
-  "src/Hledger/Dashboard/Currency.hs",
-  "src/Hledger/Dashboard/Transaction.hs"]
+  "src/Data/Accounting/Account.hs",
+  "src/Data/Accounting/Currency.hs",
+  "src/Data/Accounting/Transaction.hs"]

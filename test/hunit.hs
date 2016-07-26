@@ -13,12 +13,12 @@ import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.Time.Calendar (fromGregorian)
 import           Data.TreeMap (pathTo)
-import           Hledger.Dashboard.Account (account, accountNameP)
-import           Hledger.Dashboard.Currency (Currency, currency)
-import           Hledger.Dashboard.Transaction (
+import           Data.Accounting.Account (account, accountNameP)
+import           Data.Accounting.Currency (Currency, currency)
+import           Data.Accounting.Transaction (
   Transaction(..),
   transactionP)
-import           Hledger.Dashboard.ParsingState (
+import           Data.Accounting.ParsingState (
   ParsingState,
   defaultParsingState)
 import           Test.Framework.Providers.HUnit
