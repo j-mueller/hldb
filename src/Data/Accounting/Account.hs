@@ -21,7 +21,7 @@ import           Data.AdditiveGroup
 import           Data.Char
 import           Data.Foldable
 import qualified Data.Map.Strict as M
-import           Data.Monoid
+import           Data.Semigroup
 import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.TreeMap (TreeMap(..), pathTo)
@@ -56,6 +56,9 @@ newtype Accounts = Accounts { _accounts :: TreeMap Text (Currency Text) }
   deriving (Eq, Ord, Show)
 
 makeLenses ''Accounts
+
+instance Semigroup Accounts where
+  (<>) = merge
 
 instance Monoid Accounts where
   mempty = empty

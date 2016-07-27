@@ -16,6 +16,12 @@ You may need to follow stack's instructions to install GHCJS.
 stack install --stack-yaml stack-ghcjs.yaml
 ```
 
+# TO DO
+
+* Tests for Journal.hs!
+* Parse a complete .hledger file
+* Show graph
+
 # License
 
 BSD3

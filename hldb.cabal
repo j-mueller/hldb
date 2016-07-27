@@ -40,10 +40,12 @@ library
     comonad,
     containers,
     deepseq,
+    fingertree,
     intervals,
     lens,
     mtl,
     parsec,
+    semigroups,
     text,
     time,
     vector-space

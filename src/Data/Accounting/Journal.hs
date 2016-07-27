@@ -1,12 +1,16 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Data.Accounting.Journal where
 
-import           Control.Lens hiding ((...), singular)
+import           Control.Lens hiding ((...), (<|), singular)
 import           Data.AdditiveGroup
 import           Data.Foldable
-import           Data.Monoid
+import           Data.FingerTree hiding (singleton)
+import qualified Data.FingerTree as FT
 import qualified Data.Map.Strict as M
+import           Data.Semigroup
 import           Data.Time.Calendar (
   Day,
   addDays,
@@ -17,19 +21,40 @@ import           Data.Time.Calendar (
 import           Data.Time.Calendar.WeekDate (fromWeekDate, toWeekDate)
 import           Data.Accounting.Account (Accounts)
 import           Data.Accounting.Currency (Currency)
-import           Numeric.Interval
+import           Numeric.Interval hiding (singleton)
+import qualified Numeric.Interval as I
+
+data JournalMeasure = JournalMeasure { 
+  _days :: Interval Day,
+  _accounts :: Accounts
+  }
+
+makeLenses ''JournalMeasure
+
+instance Semigroup JournalMeasure where
+  l <> r = JournalMeasure ds ac where
+    ds = (l^.days) `hull` (r^.days)
+    ac = (l^.accounts) <> (r^.accounts)
+
+instance Measured (Option JournalMeasure) (Day, Accounts) where
+  measure (d, ac) = Option $ Just $ JournalMeasure (I.singleton d) ac
+
+containsDay :: Day -> Option JournalMeasure -> Bool
+containsDay d = maybe False id . fmap (I.elem d . view days) . getOption 
+
+-- | Check if a journal measure is contained in an interval
+isContainedIn :: Interval Day -> Option JournalMeasure -> Bool
+isContainedIn i = maybe False id . fmap (flip I.contains i . view days) . getOption
+
+endsBefore :: Day -> Option JournalMeasure -> Bool
+endsBefore d = maybe False id . fmap ((<) d . sup . view days) . getOption
 
 data ReportingInterval = Day | Week | Month | Year
   deriving (Eq, Ord, Show, Enum, Bounded)
 
-enumerate :: (Enum a, Bounded a) => [a]
-enumerate = enumFromTo minBound maxBound
-
--- | Journal contains accounts for various reporting periods
-data Journal = Journal {
-  _intervals :: M.Map (Day, ReportingInterval) Accounts,
-  _firstDay :: Maybe Day
-}
+-- | Journal contains accounts, ordered by day and can be split into
+-- arbitrary intervals for reporting
+newtype Journal = Journal { _unJournal :: FingerTree (Option JournalMeasure) (Day, Accounts) }
 
 makeLenses ''Journal
 
@@ -37,9 +62,14 @@ makeLenses ''Journal
 
 -- | Create a journal with a single entry
 singleton :: Day -> Accounts -> Journal
-singleton d a = Journal is fd where
-  is = M.fromList $ fmap (flip (,) a . ((,) <$> flip begin d <*> id)) enumerate
-  fd = Just d
+singleton d a = Journal $ FT.singleton (d, a)
+
+-- | Insert an accounting entry into a journal
+insert :: Day -> Accounts -> Journal -> Journal
+insert d a (Journal ft) = Journal ft' where
+  ft' = before `mappend` during' `mappend` after
+  during' = (d, a) <| during
+  (before, (during, after)) = fmap (split (not . containsDay d)) $ split (containsDay d) ft
 
 -- | Get the first day of the interval containing the given day
 -- | If the interval is `Day` then `begin` and `end` both evaluate to `id`
@@ -66,30 +96,11 @@ end i d = case i of
   Year -> pred $ fromGregorian y 1 1 where
     (y, _, _) = toGregorian $ addGregorianYearsClip 1 d
 
--- | Get all intervals starting at a given date
-startingAt :: Day -> [ReportingInterval]
-startingAt d = takeWhile ((==) d . flip begin d) enumerate
-
-breakDown :: Interval Day -> [(Day, ReportingInterval)]
-breakDown i = current : rest where
-  f = inf i
-  t = sup i
-  nextStart = succ $ uncurry (flip end) current
-  current = (f, maximum $ filter endsBefore $ startingAt f)
-  endsBefore rpi = (end rpi f) <= t
-  rest = case singular i of
-    True  -> []
-    False -> breakDown $ nextStart ... t
-
 -- | Get accounts for an interval
 accountsFor :: Interval Day -> Journal -> Accounts
-accountsFor i j = fold accts where
-  start = maybe fd (min fd) $ view firstDay j
-  fd = inf i
-  lookp t = M.findWithDefault mempty t $ view intervals j
-  accts = map lookp $ breakDown i
+accountsFor i (Journal ft) = maybe mempty (view accounts) $ getOption $ measure during where
+  (_, (during, _)) = fmap (split (not . isContainedIn i)) $ split (isContainedIn i) ft
 
 -- | Get balance since beginning of journal
 balance :: Day -> Journal -> Accounts
-balance d j = accountsFor (start ... d) j where
-  start = maybe d id $ view firstDay j
+balance d = maybe mempty (view accounts) . getOption . measure . takeUntil (endsBefore $ succ d) . view unJournal
