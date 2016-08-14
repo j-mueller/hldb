@@ -108,5 +108,5 @@ accountNameP :: (Monad m, Stream s m Char) => ParsecT s u m [Text]
 accountNameP = fmap (T.splitOn ":") p where
   p = T.pack <$> theChars <?> "account name"
   theChars = (:) <$> letter <*> rest
-  rest = manyTill anyChar end <?> "rest of account name"
-  end = string "  " <|> string "\r" <|> string "\r\n" <|> (fmap (const "")  eof )
+  rest = manyTill (anyChar <|> space) end <?> "rest of account name"
+  end = (try $ string "  ") <|> string "\r" <|> string "\r\n" <|> (fmap (const "")  eof )

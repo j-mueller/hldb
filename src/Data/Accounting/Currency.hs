@@ -161,7 +161,8 @@ currencyP = pr <?> "currencyP" where
     sgn <- signP <?> "sign"
     s   <- currencySymbol <?> "currency symbol"
     _  <- many (satisfy isSpace) <?> "space"
-    amt <- fmap sgn $ (rational <?> "rational")
+    sgn2 <- signP <?> "sign 2"
+    amt <- fmap (sgn2 . sgn) $ (rational <?> "rational")
     return $ currency' amt $ Just s
   rightSymbolCurrencyP = do
     amt <- rational
@@ -194,7 +195,7 @@ balancingCurrencyP = (gets $ view runningTotal) >>= \old -> do
 -- | Parse a currency symbol
 currencySymbol :: (Monad m, MonadState (ParsingState a) m, Stream s m Char) => ParsecT s u m Text
 currencySymbol = do
-  let cond c = isPrint c && (not $ isSpace c) && (not $ isDigit c)
+  let cond c = isPrint c && (not $ isSpace c) && (not $ isDigit c) && (not $ c `elem` "+-")
   let p = many1 (satisfy cond) <?> "currency symbol"
   result <- fmap T.pack p
   _  <- lastCurrencySymbol .= result
