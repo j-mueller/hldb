@@ -61,6 +61,20 @@ txn2Result = Transaction dt desc accts where
   cash = account $ pathTo ["Assets", "Cash"] $ currency (-20 % 1) "€"
   exps = account $ pathTo ["Expenses", "Travel and Events", "Work Travel"] $ currency (1441 % 100) "£"
 
+transaction3 :: String
+transaction3 = unlines [l1, l2, l3] where
+  l1 = "2016/01/01 Exchange some money"
+  l2 = "    CurrentAccount01      £22.00 @@ -20EUR"
+  l3 = "    CurrentAccount01"
+
+txn3Result :: Transaction
+txn3Result = Transaction dt desc accts where
+  dt = fromGregorian 2016 01 01
+  desc = "Exchange some money"
+  accts = c1 <> c2
+  c1 = account $ pathTo ["CurrentAccount01"] $ currency (-20 % 1) "€"
+  c2 = account $ pathTo ["CurrentAccount02"] $ currency (22 % 1) "£"
+
 case_parse_transaction1 =
   parseOnly transactionP transaction1 @?= expected where
     expected = Right txn1Result
@@ -68,6 +82,10 @@ case_parse_transaction1 =
 case_parse_transaction2 =
   parseOnly transactionP transaction2 @?= expected where
     expected = Right txn2Result
+
+case_parse_transaction3 =
+  parseOnly transactionP transaction3 @?= expected where
+    expected = Right txn3Result
 
 case_parse_account_names = result @?= expected where
   expected = Right ["Expenses", "Cash"]
