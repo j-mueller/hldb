@@ -151,11 +151,21 @@ toList = M.toList . view values
 -- Right [(Just "GBP",12 % 1)]
 -- >>> parseOnly currencyP "GBP38.11"
 -- Right [(Just "GBP",3811 % 100)]
-currencyP :: (Monad m, MonadState (ParsingState (Currency Text)) m, Stream s m Char) => ParsecT s u m (Currency (Maybe Text))
-currencyP = pr <?> "currencyP" where
-  pr = (try leftSymbolCurrencyP <?> "leftSymbolCurrencyP")
-      <|> (try rightSymbolCurrencyP  <?> "rightSymbolCurrencyP")
+singleCurrencyP :: (Monad m, MonadState (ParsingState (Currency Text)) m, Stream s m Char) => ParsecT s u m (Currency (Maybe Text))
+singleCurrencyP = pr <?> "currencyP" where
+  pr = (try $ fmap (mapCurrencies Just) currencyWithSymbolP) 
       <|> (noSymbolCurrencyP    <?> "noSymbolCurrencyP")
+  currency' r = Currency . nonZero . flip M.singleton r
+  noSymbolCurrencyP = do
+    sgn <- signP
+    r   <- fmap sgn $ rational
+    return $ currency' r $ Nothing
+
+-- | Parse a currency with a symbol (left or right of it)
+currencyWithSymbolP :: (Monad m, MonadState (ParsingState (Currency Text)) m, Stream s m Char) => ParsecT s u m (Currency Text)
+currencyWithSymbolP = pr <?> "currencyWithSymbolP" where
+  pr = (try leftSymbolCurrencyP <?> "leftSymbolCurrencyP")
+      <|> (rightSymbolCurrencyP  <?> "rightSymbolCurrencyP")
   currency' r = Currency . nonZero . flip M.singleton r
   leftSymbolCurrencyP  = do
     sgn <- signP <?> "sign"
@@ -163,16 +173,32 @@ currencyP = pr <?> "currencyP" where
     _  <- many (satisfy isSpace) <?> "space"
     sgn2 <- signP <?> "sign 2"
     amt <- fmap (sgn2 . sgn) $ (rational <?> "rational")
-    return $ currency' amt $ Just s
+    return $ currency' amt s
   rightSymbolCurrencyP = do
     amt <- rational
     _   <- many (satisfy isSpace)
     s   <- currencySymbol
-    return $ currency' amt $ Just s
-  noSymbolCurrencyP = do
-    sgn <- signP
-    r   <- fmap sgn $ rational
-    return $ currency' r $ Nothing
+    return $ currency' amt s
+
+-- | Currency separator ('@@')
+currencySeparator :: (Monad m, Stream s m Char) => ParsecT s u m ()
+currencySeparator = fmap (const ()) $ char '@' >> char '@' 
+
+-- | Two currencies separated by an '@@'.
+currencyWithExchangeRateP :: (Monad m, MonadState (ParsingState (Currency Text)) m, Stream s m Char) => ParsecT s u m (Currency Text)
+currencyWithExchangeRateP = do
+  first <- currencyWithSymbolP
+  _ <- many (satisfy isSpace) <?> "space"
+  _ <- currencySeparator <?> "currency separator (@@)"
+  _   <- many (satisfy isSpace) <?> "space"
+  second <- currencyWithSymbolP
+  _ <- runningTotal <>= second
+  return first
+
+-- | Parse a `Currency` from `Text`, optionally followed by its equivalend in 
+-- another currency (separated by '@@').
+currencyP :: (Monad m, MonadState (ParsingState (Currency Text)) m, Stream s m Char) => ParsecT s u m (Currency Text)
+currencyP = (try currencyWithExchangeRateP <?> "currencyWithExchangeRateP") <|> (defaultCurrencyP <?> "defaultCurrencyP")
 
 -- | Parse a `Currency`. If only a number but no symbol is found, the last known
 -- symbol will be used.
@@ -182,15 +208,15 @@ currencyP = pr <?> "currencyP" where
 defaultCurrencyP :: (Monad m, MonadState (ParsingState (Currency Text)) m, Stream s m Char) => ParsecT s u m (Currency Text)
 defaultCurrencyP = (gets $ view lastCurrencySymbol) >>= \c -> do
   let applyDefault = mapCurrencies (maybe c id)
-  fmap applyDefault currencyP
+  r <- fmap applyDefault singleCurrencyP
+  _ <- runningTotal <>= r
+  return r
 
 -- | Parse a `Currency`. If no number is found, the `ParsingState`'s
 -- `runningTotal` will be used to balance the transaction.
 balancingCurrencyP :: (Monad m, MonadState (ParsingState (Currency Text)) m, Stream s m Char) => ParsecT s u m (Currency Text)
 balancingCurrencyP = (gets $ view runningTotal) >>= \old -> do
-  cc  <- option (negateV old) defaultCurrencyP
-  _  <- runningTotal <>= cc
-  return cc
+  option (negateV old) currencyP
 
 -- | Parse a currency symbol
 currencySymbol :: (Monad m, MonadState (ParsingState a) m, Stream s m Char) => ParsecT s u m Text

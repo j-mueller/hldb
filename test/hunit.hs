@@ -64,16 +64,16 @@ txn2Result = Transaction dt desc accts where
 transaction3 :: String
 transaction3 = unlines [l1, l2, l3] where
   l1 = "2016/01/01 Exchange some money"
-  l2 = "    CurrentAccount01      £22.00 @@ -20EUR"
-  l3 = "    CurrentAccount01"
+  l2 = "    CurrentAccount01      £22.00 @@ 20EUR"
+  l3 = "    CurrentAccount02"
 
 txn3Result :: Transaction
 txn3Result = Transaction dt desc accts where
   dt = fromGregorian 2016 01 01
   desc = "Exchange some money"
   accts = c1 <> c2
-  c1 = account $ pathTo ["CurrentAccount01"] $ currency (-20 % 1) "€"
-  c2 = account $ pathTo ["CurrentAccount02"] $ currency (22 % 1) "£"
+  c1 = account $ pathTo ["CurrentAccount01"] $ currency (22 % 1) "£"
+  c2 = account $ pathTo ["CurrentAccount02"] $ currency (-20 % 1) "EUR"
 
 case_parse_transaction1 =
   parseOnly transactionP transaction1 @?= expected where
