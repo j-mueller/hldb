@@ -41,7 +41,6 @@ library
     containers,
     deepseq,
     fingertree,
-    intervals,
     lens,
     mtl,
     parsec,
