@@ -143,13 +143,13 @@ toList = M.toList . view values
 -- | Parse a `Currency` from `Text`. The return value has a single
 -- currency-amount pair. If no currency amount is found, then the currency will
 -- be `Nothing`.
--- >>> parseOnly currencyP "1 EUR"
+-- >>> parseOnly singleCurrencyP "1 EUR"
 -- Right [(Just "EUR",1 % 1)]
--- >>> parseOnly currencyP "0.5"
+-- >>> parseOnly singleCurrencyP "0.5"
 -- Right [(Nothing,1 % 2)]
--- >>> parseOnly currencyP "GBP 12.0"
+-- >>> parseOnly singleCurrencyP "GBP 12.0"
 -- Right [(Just "GBP",12 % 1)]
--- >>> parseOnly currencyP "GBP38.11"
+-- >>> parseOnly singleCurrencyP "GBP38.11"
 -- Right [(Just "GBP",3811 % 100)]
 singleCurrencyP :: (Monad m, MonadState (ParsingState (Currency Text)) m, Stream s m Char) => ParsecT s u m (Currency (Maybe Text))
 singleCurrencyP = pr <?> "currencyP" where
