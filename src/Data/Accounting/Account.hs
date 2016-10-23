@@ -34,22 +34,6 @@ import           Data.Accounting.ParsingState (
 import           Text.Parsec.Text
 import           Text.Parsec hiding ((<|>), many)
 
--- $setup
--- >>> import Control.Applicative hiding (empty)
--- >>> import Control.Monad.State
--- >>> import Data.Text (Text)
--- >>> import qualified Data.Text as T
--- >>> import Test.QuickCheck hiding (scale)
--- >>> import Data.Accounting.Currency (Currency(..))
--- >>> :set -XScopedTypeVariables
--- >>> :set -XFlexibleInstances
--- >>> :set -XFlexibleContexts
--- >>> :set -XOverloadedStrings
--- >>> instance Arbitrary Text where arbitrary = T.pack <$> arbitrary
--- >>> instance Arbitrary (Currency Text) where arbitrary = Currency <$> fmap M.fromList arbitrary
--- >>> instance (Ord k, Arbitrary k, Arbitrary v) => Arbitrary (TreeMap k v) where arbitrary = TreeMap <$> arbitrary <*> (fmap M.fromList $ fmap (\l -> if length l > 2 then [] else l) arbitrary)
--- >>> instance Arbitrary Accounts where arbitrary = Accounts <$> arbitrary
-
 -- | An account is a `TreeMap String Currency` and `Accounts` is a top-level
 --   account.
 newtype Accounts = Accounts { _accounts :: TreeMap Text (Currency Text) }
@@ -77,12 +61,8 @@ empty = Accounts mempty
 balance :: Accounts -> Currency Text
 balance = fold . view accounts
 
--- | Merge two `Accounts`'
---
--- prop> \(a :: Accounts) -> merge a empty == a
--- prop> \(a :: Accounts) -> merge empty a == a
--- prop> \((a, b, c) :: (Accounts, Accounts, Accounts)) -> (a `merge` b) `merge` c == a `merge` (b `merge` c)
--- prop> \((l, r) :: (Accounts, Accounts)) -> l `merge` r == r `merge` l
+-- | Merge two `Accounts`. `merge` is associative and commutative and `empty`
+-- acts as its unit.
 merge :: Accounts -> Accounts -> Accounts
 merge l r = Accounts $ mappend (view accounts l) (view accounts r)
 

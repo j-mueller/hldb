@@ -26,6 +26,7 @@ import           Data.List (intercalate)
 import           Data.Monoid
 import qualified Data.Map.Strict as M
 import           Data.Ratio
+import           Data.Semigroup hiding (option)
 import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.VectorSpace
@@ -55,11 +56,13 @@ mapCurrencies f = Currency . M.mapKeys f . view values
 -- >>> import Text.Parsec.Prim
 -- >>> import Data.Text (Text)
 -- >>> import qualified Data.Text as T
--- >>> import Test.QuickCheck hiding (scale)
 -- >>> :set -XScopedTypeVariables
 -- >>> :set -XFlexibleInstances
--- >>> instance Arbitrary (Currency Text) where arbitrary = Currency <$> (fmap M.fromList $ fmap (fmap (\p -> (T.pack $ fst p, snd p))) $ arbitrary)
+-- >>> :set -XOverloadedStrings
 -- >>> let parseOnly p s = evalState (runParserT p () "" (T.pack s)) defaultParsingState
+
+instance Ord a => Semigroup (Currency a) where
+  (<>) = mappend
 
 -- | `Currency` is a `Monoid` where `<>` is `plus` and `mempty` is `empty`
 instance Ord a => Monoid (Currency a) where
@@ -101,9 +104,6 @@ add r s = Currency . nonZero . M.insertWith (+) s r . view values
 
 -- | Scale a currency by a factor
 --
--- prop> \(r :: Currency Text) -> scale 0 r == empty
--- prop> \(r :: Currency Text) -> scale 1 r == r
---
 -- >>> scale 2 $ currency 1 "EUR"
 -- [("EUR",2 % 1)]
 -- >>> scale 2.5 $ add 1 "GBP" $ currency 5 "EUR"
@@ -121,18 +121,10 @@ empty :: Currency a
 empty = Currency M.empty
 
 -- | Combine two `Currency`s by adding their values.
---
--- prop> \(r :: Currency Text) -> r `plus` mempty == r
--- prop> \(r :: Currency Text) -> mempty `plus` r == r
--- prop> \((a, b, c) :: (Currency Text, Currency Text, Currency Text)) -> (a `plus` b) `plus` c == a `plus` (b `plus` c)
--- prop> \((l, r) :: (Currency Text, Currency Text)) -> l `plus` r == r `plus` l
 plus :: Ord a => Currency a -> Currency a -> Currency a
 plus l r = Currency $ nonZero $ M.unionWith (+) (l^.values) (r^.values)
 
 -- | Invert the values of a `Currency` by multiplying them with -1.
---
--- prop> \(r :: Currency Text) -> (invert $ invert r) == r
--- prop> \(r :: Currency Text) -> r `plus` (invert r) == empty
 invert :: Ord a => Currency a -> Currency a
 invert = Currency . fmap negate . view values
 

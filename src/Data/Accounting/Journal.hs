@@ -4,7 +4,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 module Data.Accounting.Journal where
 
-import           Control.Lens hiding ((...), (<|), singular)
+import           Control.Lens hiding ((...), (<|), (|>), singular)
 import           Data.AdditiveGroup
 import           Data.Foldable
 import           Data.FingerTree hiding (singleton)
@@ -27,46 +27,62 @@ import           Text.Parsec.Text
 
 
 data JournalMeasure = JournalMeasure { 
-  _firstDay :: Min Day,
+  _firstDay :: Option (Min Day),
+  _lastDay  :: Option (Max Day),
   _accounts :: Accounts
   }
 
 makeLenses ''JournalMeasure
 
 instance Semigroup JournalMeasure where
-  l <> r = JournalMeasure ds ac where
+  l <> r = JournalMeasure ds dm ac where
     ds = (l^.firstDay) <> (r^.firstDay)
+    dm = (l^.lastDay)  <> (r^.lastDay)
     ac = (l^.accounts) <> (r^.accounts)
 
-instance Measured (Option JournalMeasure) Transaction where
-  measure txn = Option $ Just $ JournalMeasure (Min $ view T.date txn) (view T.accounts txn)
+instance Monoid JournalMeasure where
+  mappend = (<>)
+  mempty  = JournalMeasure mempty mempty mempty
+
+instance Measured JournalMeasure Transaction where
+  measure = JournalMeasure 
+    <$> Option . Just . Min . view T.date
+    <*> Option . Just . Max . view T.date 
+    <*> view T.accounts
 
 data ReportingInterval = Day | Week | Month | Year
   deriving (Eq, Ord, Show, Enum, Bounded)
 
--- | Journal contains accounts, ordered by day (descending; youngest first) and
+type JournalTree = FingerTree JournalMeasure Transaction
+
+-- | Journal contains accounts, ordered by day (ascending; oldest first) and
 -- can be split into arbitrary intervals for reporting
-newtype Journal = Journal { _unJournal :: FingerTree (Option JournalMeasure) Transaction }
+newtype Journal = Journal { _unJournal :: JournalTree }
 
 makeLenses ''Journal
 
 instance Monoid Journal where
   mempty = Journal mempty
-  mappend (Journal l) (Journal r) = Journal (l `mappend` r)
-
--- TODO: instance Monoid Journal
+  mappend l (Journal r) = ft' where -- can't use the monoid instance of FingerTree because we need to respect the ordering
+    ft' = foldl' (flip insert) l (toList r)
 
 -- | Create a journal with a single entry
 singleton :: Transaction -> Journal
 singleton = Journal . FT.singleton
 
+-- | Split a journal into two parts, given a day: Transactions before that 
+-- day, and transactions on and after that day
+splitByDay :: Day -> JournalTree -> (JournalTree, JournalTree)
+splitByDay dy t = (older, youngerEq) where
+  pred1 v = (v^.lastDay) >= (Option $ Just $ Max dy)
+  (older, youngerEq) = split pred1 t
+
 -- | Insert an accounting entry into a journal
 insert :: Transaction -> Journal -> Journal
-insert txn (Journal ft) = Journal ft' where
+insert txn (Journal jnl) = Journal ft' where
   d = view T.date txn
-  ft' = after `mappend` rest'
-  rest' = txn <| rest
-  (after, rest) = split ((>=) (Option $ Just $ Min d) . (fmap (view firstDay))) ft
+  (before, duringAndAfter) = splitByDay d jnl 
+  ft' = (before |> txn) >< duringAndAfter
 
 -- | Get the first day of the interval containing the given day
 -- | If the interval is `Day` then `begin` and `end` both evaluate to `id`
@@ -95,10 +111,13 @@ end i d = case i of
 
 -- | Get accounts for an interval
 accountsFor :: Day -> Day -> Journal -> Accounts
-accountsFor from to (Journal ft) = maybe mempty (view accounts) $ getOption $ measure during where
-  (after, rest) = split ((>=) (Option $ Just $ Min from) . (fmap (view firstDay))) ft
-  (during, _)   = split ((<=) (Option $ Just $ Min to) . (fmap (view firstDay))) ft
+accountsFor from to (Journal jnl) = view accounts $ measure during where
+  (_, duringAndAfter) = splitByDay from jnl 
+  (during, _) = splitByDay (succ to) duringAndAfter
 
 -- | Get balance since beginning of journal
 balance :: Day -> Journal -> Accounts
-balance d = maybe mempty (view accounts) . getOption . measure . takeUntil ((<=) (Option $ Just $ Min $ succ d) . (fmap (view firstDay))) . view unJournal
+balance d = view accounts . measure . fst . splitByDay (succ d) . view unJournal
+
+transactions :: Journal -> [Transaction]
+transactions = toList . _unJournal
