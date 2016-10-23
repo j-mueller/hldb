@@ -11,7 +11,7 @@ import Data.Accounting.Journal(
   firstDay,
   accountsFor,
   balance
-)
+  )
 
 data AppState = AppState{
   _journal :: Journal
