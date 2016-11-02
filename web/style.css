@@ -1,0 +1,132 @@
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,button,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td,article,aside,canvas,details,embed,figure,figcaption,footer,header,menu,nav,output,ruby,section,summary,time,mark,audio,video {
+	margin:0;
+	padding:0;
+	border:0;
+	font-size:100%;
+	font:inherit;
+	outline:none;
+	font-family: 'Open Sans', sans-serif;
+}
+
+.top-menu {
+	height: 50px;
+	width: 100%;
+	background: mediumseagreen;
+	color: white;
+	display: flex;
+	flex-direction: row;
+}
+
+.top-menu .title {
+	display: inline-block;
+	font-size: 20px;
+	margin-top: 10px;
+	padding: 0 12px;
+}
+
+.main-area {
+	top: 50px;
+	left: 0px;
+	right: 0px;
+	bottom: 0px;
+	position: absolute;
+	background: #e1e1e1;
+}
+
+.panel {
+	padding: 10px 10px;
+	display: flex;
+	flex-direction: column;
+	position: absolute;
+}
+
+/* a tile lives inside a panel */
+.tile {
+	background: white;
+	margin-bottom: 1px;
+}
+
+.title {
+	font-weight: lighter;
+}
+
+.tile-header .title {
+	text-transform: uppercase;
+	padding: 15px 14px 10px 14px;
+	font-size: 14pt;
+	/*font-variant: small-caps;*/
+}
+
+.data-sources {
+	position: absolute;
+	margin-top: 50px;
+	margin-bottom: 20px;
+	padding: 0 12%;
+
+}
+
+.data-sources .title {
+	text-transform: uppercase;
+	margin-bottom: 10px;
+	font-size: 16pt;
+	color: mediumseagreen;
+}
+
+.data-sources-container {
+	display: flex;
+	flex-wrap: wrap;
+}
+
+.item-card {
+	width: 280px;
+	height: 100px;
+	padding: 5px 5px 5px 5px;
+	cursor: pointer;
+}
+
+.data-sources-container .item-card {
+	flex: 1 0 auto;
+	min-width: 310px;
+	background-color: #e1e1e1;
+}
+
+.item-card .inner-container {
+	background-color: white;
+	box-shadow: 0 1px 1px 0 rgba(0, 0, 0, 0.1);
+	width: 100%;
+	padding: 16px 16px;
+	white-space: nowrap;
+	display: block;
+}
+
+.item-card :hover {
+	background-color: #eee;
+}
+
+.item-card .inner-container .text {
+	padding-top: 3px;
+	white-space: normal;
+	width: calc(100% - 30px);
+}
+
+.item-card .inner-container .text .title {
+	font-weight: bold;
+	text-transform: none;
+	font-size: 13pt;
+	color: black;
+	margin-bottom: 6px;
+}
+
+.item-card .inner-container .text .description {
+	font-weight: lighter;
+	font-size: 12pt;
+	line-height: 16px;
+	color: #aaa;
+	height: 33px;
+	overflow-y: hidden;
+}
+
+.top-menu .data-source-label {
+	font-weight: lighter;
+	margin-top: 15px;
+}

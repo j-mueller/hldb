@@ -60,7 +60,10 @@ executable hldb-webapp
   main-is:             Main.hs
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   other-modules:
-    Hledger.App
+    Hledger.Components.JournalComponent,
+    Hledger.Components.JournalLoader,
+    Hledger.Components.MainComponent,
+    Hledger.Components.Utils
   if !flag(webapp)
     buildable: False
   else
@@ -71,7 +74,9 @@ executable hldb-webapp
                        , hldb
                        , lens
                        , mtl
+                       , semigroups
                        , text
+                       , transformers
                        , virtual-hom
   default-language:    Haskell2010
 

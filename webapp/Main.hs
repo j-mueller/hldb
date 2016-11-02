@@ -12,12 +12,9 @@ import Prelude hiding (div)
 import VirtualHom.Components
 import VirtualHom.Rendering(renderingOptions)
 
-import Hledger.App
-
-theUI :: Component Int
-theUI = mempty
+import Hledger.Components.MainComponent
 
 main :: IO ()
 main = do
   let options = renderingOptions "hldb"
-  renderComponent options theUI 0
+  renderComponent options mainComponent initialProps
