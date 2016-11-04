@@ -63,7 +63,8 @@ executable hldb-webapp
     Hledger.Components.JournalComponent,
     Hledger.Components.JournalLoader,
     Hledger.Components.MainComponent,
-    Hledger.Components.Utils
+    Hledger.Components.Utils,
+    Hledger.FFI.FileSelection
   if !flag(webapp)
     buildable: False
   else

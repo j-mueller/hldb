@@ -8,6 +8,7 @@ import Control.Lens hiding (children, transform)
 import Data.Functor.Identity(Identity, runIdentity)
 import Data.Monoid
 import qualified Data.Text as T
+import Hledger.FFI.FileSelection
 import Prelude hiding (div)
 import VirtualHom.Components
 import VirtualHom.Rendering(renderingOptions)
