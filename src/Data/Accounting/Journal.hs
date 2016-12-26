@@ -1,16 +1,19 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 module Data.Accounting.Journal where
 
 import           Control.Lens hiding ((...), (<|), (|>), singular)
+import           Control.Monad.State (MonadState)
 import           Data.AdditiveGroup
 import           Data.Foldable
-import           Data.FingerTree hiding (singleton)
+import           Data.FingerTree hiding (fromList, singleton)
 import qualified Data.FingerTree as FT
 import qualified Data.Map.Strict as M
 import           Data.Semigroup
+import           Data.Text (Text)
 import           Data.Time.Calendar (
   Day,
   addDays,
@@ -20,6 +23,7 @@ import           Data.Time.Calendar (
   toGregorian)
 import           Data.Time.Calendar.WeekDate (fromWeekDate, toWeekDate)
 import           Data.Accounting.Account (Accounts)
+import           Data.Accounting.Currency (Currency)
 import           Data.Accounting.Transaction (Transaction)
 import qualified Data.Accounting.Transaction as T
 import           Text.Parsec
@@ -31,6 +35,7 @@ data JournalMeasure = JournalMeasure {
   _lastDay  :: Option (Max Day),
   _accounts :: Accounts
   }
+  deriving (Eq, Ord, Show)
 
 makeLenses ''JournalMeasure
 
@@ -58,6 +63,7 @@ type JournalTree = FingerTree JournalMeasure Transaction
 -- | Journal contains accounts, ordered by day (ascending; oldest first) and
 -- can be split into arbitrary intervals for reporting
 newtype Journal = Journal { _unJournal :: JournalTree }
+  deriving (Eq, Ord, Show)
 
 makeLenses ''Journal
 
@@ -69,6 +75,10 @@ instance Monoid Journal where
 -- | Create a journal with a single entry
 singleton :: Transaction -> Journal
 singleton = Journal . FT.singleton
+
+-- | Create a journal from a list of journal entries
+fromList :: [Transaction] -> Journal
+fromList = foldl' (flip insert) mempty 
 
 -- | Split a journal into two parts, given a day: Transactions before that 
 -- day, and transactions on and after that day
@@ -119,5 +129,14 @@ accountsFor from to (Journal jnl) = view accounts $ measure during where
 balance :: Day -> Journal -> Accounts
 balance d = view accounts . measure . fst . splitByDay (succ d) . view unJournal
 
+totalBalance :: Journal -> Accounts
+totalBalance = view accounts . measure . view unJournal
+
 transactions :: Journal -> [Transaction]
 transactions = toList . _unJournal
+
+-- | Parse a journal
+-- journalP :: (Stream s m Char, Monad m, MonadState (ParsingState (Currency Text)) m) => ParsecT s u m Journal
+-- journalP = do
+--   txns <- sepBy transactionP (skipMany1 endOfLine)
+--   return $ fromList txns

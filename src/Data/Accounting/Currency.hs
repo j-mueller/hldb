@@ -7,14 +7,16 @@ module Data.Accounting.Currency(
   -- * Constructors
   empty,
   currency,
+  Currency(..),
   -- * Operations
   add,
   scale,
   plus,
   invert,
   toList,
-  -- * Parser
-  balancingCurrencyP
+  -- * Other
+  mapCurrencies,
+  nonZero
 ) where
 
 import           Control.Applicative hiding (empty, optional)
@@ -34,8 +36,6 @@ import           Text.Parsec hiding ((<|>), many)
 import           Text.Parsec.Combinator
 import           Text.Parsec.Text
 import           Text.Read (readEither)
-
-import Data.Accounting.ParsingState
 
 -- | Values with currencies.
 newtype Currency a = Currency { _values :: M.Map a Rational }
@@ -131,110 +131,3 @@ invert = Currency . fmap negate . view values
 -- | Get a list of the values in this `Currency`
 toList :: Ord a => Currency a -> [(a, Rational)]
 toList = M.toList . view values
-
--- | Parse a `Currency` from `Text`. The return value has a single
--- currency-amount pair. If no currency amount is found, then the currency will
--- be `Nothing`.
--- >>> parseOnly singleCurrencyP "1 EUR"
--- Right [(Just "EUR",1 % 1)]
--- >>> parseOnly singleCurrencyP "0.5"
--- Right [(Nothing,1 % 2)]
--- >>> parseOnly singleCurrencyP "GBP 12.0"
--- Right [(Just "GBP",12 % 1)]
--- >>> parseOnly singleCurrencyP "GBP38.11"
--- Right [(Just "GBP",3811 % 100)]
-singleCurrencyP :: (Monad m, MonadState (ParsingState (Currency Text)) m, Stream s m Char) => ParsecT s u m (Currency (Maybe Text))
-singleCurrencyP = pr <?> "currencyP" where
-  pr = (try $ fmap (mapCurrencies Just) currencyWithSymbolP) 
-      <|> (noSymbolCurrencyP    <?> "noSymbolCurrencyP")
-  currency' r = Currency . nonZero . flip M.singleton r
-  noSymbolCurrencyP = do
-    sgn <- signP
-    r   <- fmap sgn $ rational
-    return $ currency' r $ Nothing
-
--- | Parse a currency with a symbol (left or right of it)
-currencyWithSymbolP :: (Monad m, MonadState (ParsingState (Currency Text)) m, Stream s m Char) => ParsecT s u m (Currency Text)
-currencyWithSymbolP = pr <?> "currencyWithSymbolP" where
-  pr = (try leftSymbolCurrencyP <?> "leftSymbolCurrencyP")
-      <|> (rightSymbolCurrencyP  <?> "rightSymbolCurrencyP")
-  currency' r = Currency . nonZero . flip M.singleton r
-  leftSymbolCurrencyP  = do
-    sgn <- signP <?> "sign"
-    s   <- currencySymbol <?> "currency symbol"
-    _  <- many (satisfy isSpace) <?> "space"
-    sgn2 <- signP <?> "sign 2"
-    amt <- fmap (sgn2 . sgn) $ (rational <?> "rational")
-    return $ currency' amt s
-  rightSymbolCurrencyP = do
-    amt <- rational
-    _   <- many (satisfy isSpace)
-    s   <- currencySymbol
-    return $ currency' amt s
-
--- | Currency separator ('@@')
-currencySeparator :: (Monad m, Stream s m Char) => ParsecT s u m ()
-currencySeparator = fmap (const ()) $ char '@' >> char '@' 
-
--- | Two currencies separated by an '@@'.
-currencyWithExchangeRateP :: (Monad m, MonadState (ParsingState (Currency Text)) m, Stream s m Char) => ParsecT s u m (Currency Text)
-currencyWithExchangeRateP = do
-  first <- currencyWithSymbolP
-  _ <- many (satisfy isSpace) <?> "space"
-  _ <- currencySeparator <?> "currency separator (@@)"
-  _   <- many (satisfy isSpace) <?> "space"
-  second <- currencyWithSymbolP
-  _ <- runningTotal <>= second
-  return first
-
--- | Parse a `Currency` from `Text`, optionally followed by its equivalend in 
--- another currency (separated by '@@').
-currencyP :: (Monad m, MonadState (ParsingState (Currency Text)) m, Stream s m Char) => ParsecT s u m (Currency Text)
-currencyP = (try currencyWithExchangeRateP <?> "currencyWithExchangeRateP") <|> (defaultCurrencyP <?> "defaultCurrencyP")
-
--- | Parse a `Currency`. If only a number but no symbol is found, the last known
--- symbol will be used.
---
--- >>> parseOnly defaultCurrencyP "-10.0"
--- Right [("",(-10) % 1)]
-defaultCurrencyP :: (Monad m, MonadState (ParsingState (Currency Text)) m, Stream s m Char) => ParsecT s u m (Currency Text)
-defaultCurrencyP = (gets $ view lastCurrencySymbol) >>= \c -> do
-  let applyDefault = mapCurrencies (maybe c id)
-  r <- fmap applyDefault singleCurrencyP
-  _ <- runningTotal <>= r
-  return r
-
--- | Parse a `Currency`. If no number is found, the `ParsingState`'s
--- `runningTotal` will be used to balance the transaction.
-balancingCurrencyP :: (Monad m, MonadState (ParsingState (Currency Text)) m, Stream s m Char) => ParsecT s u m (Currency Text)
-balancingCurrencyP = (gets $ view runningTotal) >>= \old -> do
-  option (negateV old) currencyP
-
--- | Parse a currency symbol
-currencySymbol :: (Monad m, MonadState (ParsingState a) m, Stream s m Char) => ParsecT s u m Text
-currencySymbol = do
-  let cond c = isPrint c && (not $ isSpace c) && (not $ isDigit c) && (not $ c `elem` "+-")
-  let p = many1 (satisfy cond) <?> "currency symbol"
-  result <- fmap T.pack p
-  _  <- lastCurrencySymbol .= result
-  return result
-
--- | Parse a sign (+/-) to a function,  `id` for optional '+' and `negate`
---   for '-'
-signP :: (Monad m, Stream s m Char) => ParsecT s u m (Rational -> Rational)
-signP = try m <|> p where
-  m = char '-' >> return negate
-  p = option id $ char '+' >> return id
-
--- | Parse a rational number
---
--- TODO: Move to Utils module?
-rational :: (Stream s m Char, Monad m) => ParsecT s u m Rational
-rational = do
-  s <- signP
-  before <- many digit
-  _ <- optional $ char '.'
-  after <- many digit
-  case (before ++ after) of
-    [] -> fail "rational"
-    ds -> either fail (return . s . flip (%) (10^(length after))) (readEither ds :: Either String Integer)

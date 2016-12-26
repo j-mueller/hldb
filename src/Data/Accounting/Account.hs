@@ -8,10 +8,7 @@ module Data.Accounting.Account(
   empty,
   account,
   -- * Combinators
-  merge,
-  -- * Parser
-  accountP,
-  accountNameP
+  merge
 ) where
 
 import           Control.Applicative hiding (empty)
@@ -25,12 +22,7 @@ import           Data.Semigroup
 import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.TreeMap (TreeMap(..), pathTo)
-import           Data.Accounting.Currency (Currency, balancingCurrencyP)
-import           Data.Accounting.ParsingState (
-  ParsingState,
-  defaultParsingState,
-  runningTotal
-  )
+import           Data.Accounting.Currency (Currency)
 import           Text.Parsec.Text
 import           Text.Parsec hiding ((<|>), many)
 
@@ -70,23 +62,3 @@ merge l r = Accounts $ mappend (view accounts l) (view accounts r)
 account :: TreeMap Text (Currency Text) -> Accounts
 account = Accounts
 
--- | Parse an `Accounts` value. Each node in the result will have at most one
--- child.
---
-accountP :: (Monad m, Stream s m Char, MonadState (ParsingState (Currency Text)) m) => ParsecT s u m Accounts
-accountP = do
-  accName <- accountNameP <?> "account name"
-  _       <- spaces <?> "space between account name and currency"
-  curr    <- balancingCurrencyP <?> "currency"
-  let res = Accounts $ pathTo accName curr
-  return res
-
--- | Parse the name of an account in a hierarchy. The `:` symbol is used as a
--- separator. Example: `Expenses:Gifts` results in `["Expenses", "Gifts"]`.
---
-accountNameP :: (Monad m, Stream s m Char) => ParsecT s u m [Text]
-accountNameP = fmap (T.splitOn ":" . T.filter (not . (==) '\r') . T.filter (not . (==) '\n')) p where
-  p = T.pack <$> theChars <?> "account name"
-  theChars = (:) <$> letter <*> rest
-  rest = manyTill (anyChar <|> space) end <?> "rest of account name"
-  end = (try $ string "  ") <|> string "\r" <|> string "\r\n" <|> (fmap (const "")  eof )

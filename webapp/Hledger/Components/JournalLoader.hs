@@ -3,7 +3,8 @@ module Hledger.Components.JournalLoader where
   
 import           Control.Lens hiding (children)
 import           Control.Monad.IO.Class
-import           Data.Accounting.Journal (Journal)
+import           Data.Accounting.Journal (Journal, totalBalance)
+import           Data.Accounting.Parser (parseJournal)
 import           Data.Text (Text)
 import           Hledger.Components.Utils (addClassName)
 import           Hledger.FFI.FileSelection (doClick, readFileInput)
@@ -52,8 +53,9 @@ clickFileSelector = liftIO $ doClick "ledger-file-input"
 selectLedgerFile :: Handler (Maybe Journal -> Maybe Journal) ()
 selectLedgerFile = do
   result <- liftIO $ readFileInput "ledger-file-input"
-  liftIO $ putStrLn $ show result
--- TODO: https://developer.mozilla.org/en-US/docs/Using_files_from_web_applications#Using_hidden_file_input_elements_using_the_click()_method
+  liftIO $ putStrLn $ either (const "ERROR") (show . fmap totalBalance . parseJournal) result
 
 selectRandomData :: Handler (Maybe Journal -> Maybe Journal) ()
 selectRandomData = liftIO $ putStrLn "Random data"
+
+-- TODO: https://developer.mozilla.org/en-US/docs/Using_files_from_web_applications#Using_hidden_file_input_elements_using_the_click()_method

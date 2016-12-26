@@ -35,7 +35,7 @@ library
     Data.Accounting.Account,
     Data.Accounting.Currency,
     Data.Accounting.Journal,
-    Data.Accounting.ParsingState,
+    Data.Accounting.Parser,
     Data.Accounting.Transaction,
     Data.TreeMap
   build-depends:
