@@ -21,13 +21,13 @@ journalLoader = component' $ \_ -> [
     & addClassName "data-sources-container"
     & children .~ [
       makeFS "Ledger file" "Load a ledger file from disk",
-      makeDS "Random data" "Use a randomly generated data set"
+      makeDS "Random data" "(not implemented yet)"
         & callbacks . click ?~ const selectRandomData
   ]]] where
-    makeDS ttl desc = H.div & addClassName "item-card" & children .~ [
+    makeDS ttl desc = H.div & addClassName "item-card unavailable" & children .~ [
       H.div & addClassName "inner-container" & children .~ [
           H.div & addClassName "text" & children .~ [
-            H.div & addClassName "title" & content .~ ttl,
+            H.div & addClassName "title unavailable" & content .~ ttl,
             H.div & addClassName "description" & content .~ desc
           ]
       ]]
@@ -53,9 +53,7 @@ clickFileSelector = liftIO $ doClick "ledger-file-input"
 selectLedgerFile :: Handler (Maybe Journal -> Maybe Journal) ()
 selectLedgerFile = do
   result <- liftIO $ readFileInput "ledger-file-input"
-  liftIO $ putStrLn $ either (const "ERROR") (show . fmap totalBalance . parseJournal) result
+  either (const $ liftIO $ putStrLn "ERROR") (update . const . Just) $ (result >>= parseJournal)
 
 selectRandomData :: Handler (Maybe Journal -> Maybe Journal) ()
 selectRandomData = liftIO $ putStrLn "Random data"
-
--- TODO: https://developer.mozilla.org/en-US/docs/Using_files_from_web_applications#Using_hidden_file_input_elements_using_the_click()_method

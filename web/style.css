@@ -84,6 +84,11 @@ html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,button,blockquote,pr
 	cursor: pointer;
 }
 
+.unavailable {
+	font-style: italic;
+	cursor: not-allowed;
+}
+
 .data-sources-container .item-card {
 	flex: 1 0 auto;
 	min-width: 310px;
