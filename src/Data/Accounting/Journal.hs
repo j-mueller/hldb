@@ -7,7 +7,7 @@ module Data.Accounting.Journal where
 
 import           Control.Lens hiding ((...), (<|), (|>), singular)
 import           Control.Monad.State (MonadState)
-import           Data.AdditiveGroup
+import           Data.AdditiveGroup hiding (Sum)
 import           Data.Foldable
 import           Data.FingerTree hiding (fromList, singleton)
 import qualified Data.FingerTree as FT
@@ -33,27 +33,30 @@ import           Text.Parsec.Text
 data JournalMeasure = JournalMeasure { 
   _firstDay :: Option (Min Day),
   _lastDay  :: Option (Max Day),
-  _accounts :: Accounts
+  _accounts :: Accounts,
+  _transactionCount :: Sum Int
   }
   deriving (Eq, Ord, Show)
 
 makeLenses ''JournalMeasure
 
 instance Semigroup JournalMeasure where
-  l <> r = JournalMeasure ds dm ac where
+  l <> r = JournalMeasure ds dm ac cc where
     ds = (l^.firstDay) <> (r^.firstDay)
     dm = (l^.lastDay)  <> (r^.lastDay)
     ac = (l^.accounts) <> (r^.accounts)
+    cc = (l^.transactionCount) <> (r^.transactionCount)
 
 instance Monoid JournalMeasure where
   mappend = (<>)
-  mempty  = JournalMeasure mempty mempty mempty
+  mempty  = JournalMeasure mempty mempty mempty mempty
 
 instance Measured JournalMeasure Transaction where
   measure = JournalMeasure 
     <$> Option . Just . Min . view T.date
     <*> Option . Just . Max . view T.date 
     <*> view T.accounts
+    <*> const 1
 
 data ReportingInterval = Day | Week | Month | Year
   deriving (Eq, Ord, Show, Enum, Bounded)
@@ -129,8 +132,11 @@ accountsFor from to (Journal jnl) = view accounts $ measure during where
 balance :: Day -> Journal -> Accounts
 balance d = view accounts . measure . fst . splitByDay (succ d) . view unJournal
 
+journalMeasure :: Journal -> JournalMeasure
+journalMeasure = measure . view unJournal 
+
 totalBalance :: Journal -> Accounts
-totalBalance = view accounts . measure . view unJournal
+totalBalance = view accounts . journalMeasure
 
 transactions :: Journal -> [Transaction]
 transactions = toList . _unJournal

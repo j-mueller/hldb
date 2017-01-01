@@ -62,7 +62,19 @@ html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,button,blockquote,pr
 	margin-top: 50px;
 	margin-bottom: 20px;
 	padding: 0 12%;
+}
 
+.focus-panel {
+	position: absolute;
+	margin-top: 50px;
+	margin-bottom: 20px;
+	padding: 0 12%;
+}
+.focus-panel .title {
+	text-transform: uppercase;
+	margin-bottom: 10px;
+	font-size: 16pt;
+	color: mediumseagreen;
 }
 
 .data-sources .title {
@@ -77,6 +89,10 @@ html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,button,blockquote,pr
 	flex-wrap: wrap;
 }
 
+.focus-panel-container {
+	display: flex;
+	flex-wrap: wrap;
+}
 .item-card {
 	width: 280px;
 	height: 100px;
@@ -84,9 +100,18 @@ html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,button,blockquote,pr
 	cursor: pointer;
 }
 
+.focus-panel-container .kpi {
+	text-align: center;
+}
+
 .unavailable {
 	font-style: italic;
 	cursor: not-allowed;
+}
+
+.focus-panel-container .item-card {
+	flex: 1 0 auto;
+	min-width: 310px;
 }
 
 .data-sources-container .item-card {
