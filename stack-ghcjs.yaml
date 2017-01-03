@@ -1,10 +1,13 @@
-resolver: lts-5.17
+resolver: lts-6.25
 
 packages:
 - '.'
 - location:
     git: https://github.com/j-mueller/virtual-hom
     commit: 115370b01639317f476947bb9a09510b881cae07
+- location:
+    git: https://github.com/j-mueller/diagrams-lib
+    commit: 8f873d68aad4087b79006ad95935716f70363fd3
 
 extra-deps: []
 
@@ -14,10 +17,11 @@ flags:
 
 extra-package-dbs: []
 
-compiler: ghcjs-0.2.0.20160315_ghc-7.10.2
+compiler: ghcjs-0.2.0.9006025_ghc-7.10.3
 compiler-check: match-exact
 setup-info:
- ghcjs:
-  source:
-   ghcjs-0.2.0.20160315_ghc-7.10.2:
-    url: "https://github.com/nrolland/ghcjs/releases/download/v.0.2.0.20160315/ghcjs-0.2.0.20160315.tar.gz"
+  ghcjs:
+    source:
+      ghcjs-0.2.0.9006025_ghc-7.10.3:
+         url: http://ghcjs.tolysz.org/lts-6.25-9006025.tar.gz
+         sha1: 3c87228579b55c05e227a7876682c2a7d4c9c007

@@ -7,6 +7,7 @@ module Main where
 import Control.Lens hiding (children, transform)
 import Data.Functor.Identity(Identity, runIdentity)
 import Data.Monoid
+import Diagrams.Backend.VirtualHom
 import qualified Data.Text as T
 import Hledger.FFI.FileSelection
 import Prelude hiding (div)

@@ -60,16 +60,21 @@ executable hldb-webapp
   main-is:             Main.hs
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   other-modules:
+    Diagrams.Backend.VirtualHom,
+    Graphics.Rendering.SVG,
     Hledger.Components.JournalComponent,
     Hledger.Components.JournalLoader,
     Hledger.Components.MainComponent,
     Hledger.Components.Utils,
-    Hledger.FFI.FileSelection
+    Hledger.FFI.FileSelection,
+    VirtualHom.Svg
   if !flag(webapp)
     buildable: False
   else
     build-depends:       base
                        , containers
+                       , diagrams-core
+                       , diagrams-lib == 1.3.1.3
                        , ghcjs-base >= 0.2.0.0
                        , ghcjs-prim
                        , hldb
