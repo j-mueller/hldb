@@ -67,7 +67,8 @@ executable hldb-webapp
     Hledger.Components.MainComponent,
     Hledger.Components.Utils,
     Hledger.FFI.FileSelection,
-    VirtualHom.Svg
+    VirtualHom.Svg,
+    VirtualHom.Svg.Path
   if !flag(webapp)
     buildable: False
   else

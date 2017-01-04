@@ -1,9 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes        #-}
+{-# LANGUAGE ImpredicativeTypes #-}
 module VirtualHom.Svg where
+
+import           Data.Void
 
 import           VirtualHom.Internal.Element hiding (content, input, select)
 import qualified VirtualHom.Internal.Element as E
+import           VirtualHom.Svg.Path (toText)
 
 import           Control.Lens                hiding (element, pre)
 import           Data.Text                   (Text)
@@ -15,9 +19,9 @@ import           Prelude                     hiding (div, span)
 
 -- SVG Elements
 -- TODO: These should really live in the virtual-hom package, not here..
-type Element = forall a. Elem a ()
+type Element = Elem Void ()
 
-type Attribute = forall a. Elem a () -> Elem a () -- TODO (j-mueller): Elem -> Elem or something similar?
+type Attribute = Element -> Element
 
 type AttributeValue = T.Text
 
@@ -30,7 +34,8 @@ makeAttribute :: Text -> Text -> Attribute
 makeAttribute k v elm = elm & attributes . at k ?~ v
 
 makeSvgElem :: Text -> Element
-makeSvgElem tpe = elm tpe & namespace .~ "http://www.w3.org/2000/svg"
+makeSvgElem tpe = elm tpe 
+  & namespace .~ "http://www.w3.org/2000/svg"
 
 -- | The @accentHeight@ attribute.
 accent_height :: AttrTag
@@ -1098,15 +1103,16 @@ defs = makeSvgElem "defs"
 radialGradient :: Element
 radialGradient = makeSvgElem "radialGradient"
 
--- | Other
--- http://hackage.haskell.org/package/lucid-svg-0.7.0.0/docs/src/Lucid-Svg-Path.html#matrix
+path_ :: Element
+path_ = makeSvgElem "path"
 
--- | Convert a number to Text.
-toText :: RealFloat a => a -> Text
-toText = toStrict . toLazyText . formatRealFloat Fixed (Just 4)
+g :: Element
+g = makeSvgElem "g"
 
--- | Specifies a transform in the form of a transformation matrix
-matrix :: RealFloat a =>  a -> a -> a -> a -> a -> a -> Text
-matrix a b c d e f =  T.concat
-  [ "matrix(", toText a, ",", toText b, ",",  toText c
-  , ",",  toText d, ",", toText e, ",",  toText f, ")"]
+a :: Element
+a = makeSvgElem "a"
+
+svg11 :: Element
+svg11 = makeSvgElem "svg"
+  & attributes . at "xmlns:xlink" ?~ "http://www.w3.org/1999/xlink"
+  & attributes . at "version" ?~ "1.1"

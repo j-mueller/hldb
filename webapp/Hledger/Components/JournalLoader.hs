@@ -6,6 +6,7 @@ import           Control.Monad.IO.Class
 import           Data.Accounting.Journal (Journal, totalBalance)
 import           Data.Accounting.Parser (parseJournal)
 import           Data.Text (Text)
+import qualified Data.Text as T
 import           Hledger.Components.Utils (addClassName)
 import           Hledger.FFI.FileSelection (doClick, readFileInput)
 import           VirtualHom.Element 
@@ -53,7 +54,7 @@ clickFileSelector = liftIO $ doClick "ledger-file-input"
 selectLedgerFile :: Handler (Maybe Journal -> Maybe Journal) ()
 selectLedgerFile = do
   result <- liftIO $ readFileInput "ledger-file-input"
-  either (const $ liftIO $ putStrLn "ERROR") (update . const . Just) $ (result >>= parseJournal)
+  either (liftIO . putStrLn . show) (update . const . Just) $ (result >>= parseJournal)
 
 selectRandomData :: Handler (Maybe Journal -> Maybe Journal) ()
 selectRandomData = liftIO $ putStrLn "Random data"

@@ -6,6 +6,7 @@
 {-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE RankNTypes         #-}
 {-# LANGUAGE ViewPatterns       #-}
+{-# LANGUAGE ImpredicativeTypes #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -24,13 +25,10 @@ module Graphics.Rendering.SVG
   ,AttributeValue
   ,svgHeader
   ,renderPath
-  ,renderClip
   ,renderText
   ,renderStyles
   ,renderMiterLimit
-  ,renderFillTextureDefs
   ,renderFillTexture
-  ,renderLineTextureDefs
   ,renderLineTexture
   ,getNumAttr)
   where
@@ -45,7 +43,7 @@ import           Data.Monoid
 -- from diagrams-core
 import           Diagrams.Core.Transform (matrixHomRep)
 -- from diagrams-lib
-import           Diagrams.Prelude        hiding (Attribute, Render, with, (<>), stroke, transform, text)
+import           Diagrams.Prelude        hiding (Attribute, Render, with, (<>), stroke, transform, text, width, height)
 import           Diagrams.TwoD.Path      (getFillRule)
 import           Diagrams.TwoD.Text hiding (text)
 -- from text
@@ -53,62 +51,43 @@ import           Data.Text               (pack)
 import qualified Data.Text               as T
 -- from virtual-hom
 import           VirtualHom.Element      (Elem, children, content)
-import           VirtualHom.Svg hiding (opacity)
+import           VirtualHom.Svg hiding (opacity, id)
 import qualified VirtualHom.Svg as S
+import qualified VirtualHom.Svg.Path as P
 
 -- | Constaint on number type that diagrams-svg can use to render an SVG. This
 --   includes the common number types: Double, Float
 type SVGFloat n = (Show n, TypeableFloat n)
 
--- Could we change Text.Blaze.SVG to use
---   showFFloat :: RealFloat a => Maybe Int -> a -> ShowS
--- or something similar for all numbers so we need TypeableFloat constraint.
-
-
-getNumAttr
-    :: AttributeClass (a n)
-    => (a n -> t) -> Style v n -> Maybe t
+getNumAttr :: AttributeClass (a n) => (a n -> t) -> Style v n -> Maybe t
 getNumAttr f = (f <$>) . getAttr
 
 -- | @svgHeader w h defs s@: @w@ width, @h@ height,
 --   @defs@ global definitions for defs sections, @s@ actual SVG content.
-svgHeader
-    :: SVGFloat n
-    => n -> n -> Maybe Element -> [Attribute] -> Bool -> Element -> Element
-svgHeader w h defines attributes genDoctype s =
-    dt <>
-    with
-        (svg11_ (defs_ [] ds <> s))
-        ([ Width_ <<- toText w
-         , Height_ <<- toText h
-         , Font_size_ <<- "1"
-         , ViewBox_ <<-
-           (pack . unwords $ map show ([0, 0, round w, round h] :: [Int]))
-         , Stroke_ <<- "rgb(0,0,0)"
-         , Stroke_opacity_ <<- "1"] ++
-         attributes)
+svgHeader :: SVGFloat n => forall a. n -> n -> Maybe Element -> [Element -> Element] -> [Element] -> Element
+svgHeader w h defines attributes s = svg11 
+    & children .~ ds ++ s
+    & width (P.toText w)
+    & height (P.toText h)
+    & font_size "1"
+    & viewBox (pack . unwords $ map show ([0, 0, round w, round h] :: [Int]))
+    & stroke "rgb(0, 0, 0)"
+    & stroke_opacity "1"
+    & (appEndo $ foldMap id (fmap Endo attributes))
   where
-    ds = fromMaybe mempty defines
-    dt =
-        if genDoctype
-            then doctype
-            else mempty
+    ds = maybe mempty return defines
 
-renderPath
-    :: SVGFloat n
-    => Path V2 n -> Element
+renderPath :: SVGFloat n => Path V2 n -> [Element]
 renderPath trs =
     if makePath == T.empty
         then mempty
-        else path_ [D_ <<- makePath]
+        else [path_ & d makePath]
   where
     makePath = foldMap renderTrail (op Path trs)
 
-renderTrail
-    :: SVGFloat n
-    => Located (Trail V2 n) -> AttributeValue
+renderTrail :: SVGFloat n => Located (Trail V2 n) -> AttributeValue
 renderTrail (viewLoc -> (P (V2 x y),t)) =
-    mA x y <> withTrail renderLine renderLoop t
+    P.mA x y <> withTrail renderLine renderLoop t
   where
     renderLine = foldMap renderSeg . lineSegments
     renderLoop lp =
@@ -116,102 +95,14 @@ renderTrail (viewLoc -> (P (V2 x y),t)) =
             -- let z handle the last segment if it is linear
             (segs,Linear _) -> foldMap renderSeg segs
             -- otherwise we have to emit it explicitly
-            _ -> foldMap renderSeg (lineSegments . cutLoop $ lp) <> z
+            _ -> foldMap renderSeg (lineSegments . cutLoop $ lp) <> P.z
 
-renderSeg
-    :: SVGFloat n
-    => Segment Closed V2 n -> AttributeValue
-renderSeg (Linear (OffsetClosed (V2 x 0))) = hR x
-renderSeg (Linear (OffsetClosed (V2 0 y))) = vR y
-renderSeg (Linear (OffsetClosed (V2 x y))) = lR x y
+renderSeg :: SVGFloat n => Segment Closed V2 n -> AttributeValue
+renderSeg (Linear (OffsetClosed (V2 x 0))) = P.hR x
+renderSeg (Linear (OffsetClosed (V2 0 y))) = P.vR y
+renderSeg (Linear (OffsetClosed (V2 x y))) = P.lR x y
 renderSeg (Cubic (V2 x0 y0) (V2 x1 y1) (OffsetClosed (V2 x2 y2))) =
-    cR x0 y0 x1 y1 x2 y2
-
--- TODO: Virtual-hom needs to be changed to not use the id attribute anymore. OR
--- it should allow some kind of stable reference to elements
--- 
--- renderClip :: SVGFloat n => Path V2 n -> T.Text -> Int -> Element -> Element
--- renderClip p prefix ident svg =
---     do defs_ [] $ clipPath_ [Id_ <<- (clipPathId ident)] (renderPath p) <> g_ [Clip_path_ <<- ("url(#" <> clipPathId ident <> ")")] svg
---   where
---     clipPathId i = prefix <> "myClip" <> (pack . show $ i)
-
--- renderStop :: SVGFloat n => GradientStop n -> Element
--- renderStop (GradientStop c v) =
---     stop_
---         [ Stop_color_ <<- (colorToRgbText c)
---         , Offset_ <<- (toText v)
---         , Stop_opacity_ <<- (toText $ colorToOpacity c)]
-
--- spreadMethodText :: SpreadMethod -> AttributeValue
--- spreadMethodText GradPad = "pad"
--- spreadMethodText GradReflect = "reflect"
--- spreadMethodText GradRepeat = "repeat"
-
--- renderLinearGradient :: SVGFloat n => LGradient n -> Int -> Element
--- renderLinearGradient g i =
---     linearGradient_
---         [ Id_ <<- (pack $ "gradient" ++ show i)
---         , X1_ <<- toText x1
---         , Y1_ <<- toText y1
---         , X2_ <<- toText x2
---         , Y2_ <<- toText y2
---         , GradientTransform_ <<- mx
---         , GradientUnits_ <<- "userSpaceOnUse"
---         , SpreadMethod_ <<- spreadMethodText (g ^. lGradSpreadMethod)] $
---     foldMap renderStop (g ^. lGradStops)
---   where
---     mx = matrix a1 a2 b1 b2 c1 c2
---     [[a1,a2],[b1,b2],[c1,c2]] = matrixHomRep (g ^. lGradTrans)
---     P (V2 x1 y1) = g ^. lGradStart
---     P (V2 x2 y2) = g ^. lGradEnd
-
--- renderRadialGradient :: SVGFloat n => RGradient n -> Int -> Element
--- renderRadialGradient g i = radialGradient 
---     &
---         [ Id_ <<- (pack $ "gradient" ++ show i)
---         , R_ <<- toText (g ^. rGradRadius1)
---         , Cx_ <<- toText cx
---         , Cy_ <<- toText cy
---         , Fx_ <<- toText fx
---         , Fy_ <<- toText fy
---         , GradientTransform_ <<- mx
---         , GradientUnits_ <<- "userSpaceOnUse"
---         , SpreadMethod_ <<- spreadMethodText (g ^. rGradSpreadMethod)]
---         (foldMap renderStop ss)
---   where
---     mx = matrix a1 a2 b1 b2 c1 c2
---     [[a1,a2],[b1,b2],[c1,c2]] = matrixHomRep (g ^. rGradTrans)
---     P (V2 cx cy) = g ^. rGradCenter1
---     P (V2 fx fy) = g ^. rGradCenter0 -- SVGs focal point is our inner center.
---     -- Adjust the stops so that the gradient begins at the perimeter of
---     -- the inner circle (center0, radius0) and ends at the outer circle.
---     r0 = g ^. rGradRadius0
---     r1 = g ^. rGradRadius1
---     stopFracs =
---         r0 / r1 :
---         map
---             (\s ->
---                   (r0 + (s ^. stopFraction) * (r1 - r0)) / r1)
---             (g ^. rGradStops)
---     gradStops =
---         case g ^. rGradStops of
---             [] -> []
---             xs@(x:_) -> x : xs
---     ss =
---         zipWith
---             (\gs sf ->
---                   gs & stopFraction .~ sf)
---             gradStops
---             stopFracs
-
--- -- Create a gradient element so that it can be used as an attribute value for fill.
--- renderFillTextureDefs :: SVGFloat n => Int -> Style v n -> [Element]
--- renderFillTextureDefs i s =
---     case getNumAttr getFillTexture s of
---         Just (LG g) -> defs & children .~ [renderLinearGradient g i]
---         Just (RG g) -> defs & children .~ [renderRadialGradient g i]
---         _ -> mempty
+    P.cR x0 y0 x1 y1 x2 y2
 
 -- Render the gradient using the id set up in renderFillTextureDefs.
 renderFillTexture :: SVGFloat n => Int -> Style v n -> [Attribute]
@@ -222,20 +113,7 @@ renderFillTexture ident s =
             renderAttr fill_opacity fillColorOpacity
             where fillColorRgb = Just $ colorToRgbText c
                   fillColorOpacity = Just $ colorToOpacity c
-        Just (LG _) ->
-            [ fill ("url(#gradient" <> (pack . show $ ident) <> ")")
-            , fill_opacity "1"]
-        Just (RG _) ->
-            [ fill ("url(#gradient" <> (pack . show $ ident) <> ")")
-            , fill_opacity "1"]
-        Nothing -> []
-
-renderLineTextureDefs :: SVGFloat n => Int -> Style v n -> [Element]
-renderLineTextureDefs i s =
-    case getNumAttr getLineTexture s of
-        Just (LG g) -> [defs & children .~ [renderLinearGradient g i]]
-        Just (RG g) -> [defs & children .~ [renderRadialGradient g i]]
-        _ -> mempty
+        _ -> []
 
 renderLineTexture :: SVGFloat n => Int -> Style v n -> [Attribute]
 renderLineTexture ident s =
@@ -245,13 +123,7 @@ renderLineTexture ident s =
             renderAttr stroke_opacity lineColorOpacity
             where lineColorRgb = Just $ colorToRgbText c
                   lineColorOpacity = Just $ colorToOpacity c
-        Just (LG _) ->
-            [ stroke ("url(#gradient" <> (pack . show $ ident) <> ")")
-            , stroke_opacity "1"]
-        Just (RG _) ->
-            [ stroke ("url(#gradient" <> (pack . show $ ident) <> ")")
-            , stroke_opacity "1"]
-        Nothing -> []
+        _ -> []
 
 renderText :: SVGFloat n => Text n -> Element
 renderText (Text tt tAlign str) = text
@@ -259,7 +131,7 @@ renderText (Text tt tAlign str) = text
     & dominant_baseline vAlign
     & text_anchor hAlign
     & stroke "none"
-    & content .~ str
+    & content .~ T.pack str
   where
     vAlign =
         case tAlign of
@@ -285,7 +157,7 @@ renderText (Text tt tAlign str) = text
                     _ -> "middle"
     t = tt `mappend` reflectionY
     [[a,b],[c,d],[e,f]] = matrixHomRep t
-    transformMatrix = matrix a b c d e f
+    transformMatrix = P.matrix a b c d e f
 
 renderStyles :: SVGFloat n => Int -> Int -> Style v n -> [Attribute]
 renderStyles fillId lineId s =
@@ -310,7 +182,7 @@ renderMiterLimit s = renderAttr stroke_miterlimit miterLimit
     miterLimit = getLineMiterLimit <$> getAttr s
 
 renderOpacity :: Style v n -> [Attribute]
-renderOpacity s = renderAttr opacity o
+renderOpacity s = renderAttr S.opacity o
   where
     o = getOpacity <$> getAttr s
 
