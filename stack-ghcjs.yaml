@@ -9,7 +9,7 @@ packages:
     git: https://github.com/j-mueller/diagrams-lib
     commit: 8f873d68aad4087b79006ad95935716f70363fd3
 
-extra-deps: []
+extra-deps: [ time-patterns-0.1.4.1 ]
 
 flags:
   hldb:
